@@ -4814,7 +4814,7 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
         # print 'delta_old',delta_old
         # print '1',[1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm,place,Gm[1:],delta_old)]
         if len([1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm,place,Gm[1:],delta_new)]) == len(infinite_primes):
-            Bold = min((c1_units * log(delta_new).abs() + logRlprime).floor(),Bold)
+            Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             delta_old = delta_new
             delta_new = sqrt(delta_old)
             reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(bound_Gl)]
