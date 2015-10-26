@@ -2181,24 +2181,36 @@ def exp_p(a,prime,M):
     """
     if M < 0:
         raise ValueError('M is negative')
-    
+
+    g = prime.ring().gen()
     e = prime.absolute_ramification_index()
     p = prime.absolute_norm().factor()[0][0]
     if a.valuation(prime) <= e/(p-1):
         raise ValueError('The element a does not have the right valuation at prime')
     
     N = 1
-    while N < e*(N.factorial().valuation(p)+M)/a.valuation(prime):
+    while N < e*(Integer(N).factorial().valuation(p)+M)/a.valuation(prime):
         N += 1
         
     factorial = 1
-    exp_p = 1
+    exp = 1
     z = a
     for i in range(2,N+1):
-        exp_p += z/factorial
+        exp += z/factorial
         factorial *= i
         z *= a
-        
+    exp_p = 0
+    for i,b in enumerate(exp.list()):
+        val = b.valuation(p)
+        if val < 0:
+            t = b * p**(-val)
+            t = ZZ(mod(t,p**(M-val)))
+            t = t * p**val
+        else:
+            t = ZZ(mod(b,p**M))
+        exp_p = exp_p + t * g**i
+
+
     return exp_p
 
 
@@ -2248,6 +2260,7 @@ def log_p(a,prime,M): #This one to work with
     
     primes = [(-(a.valuation(pr)),pr) for pr in K.primes_above(p) if a.valuation(pr) < 0]
     list = []
+
     for (val,pr) in primes: 
         #for its pair in primes we find an element in K such that it is divisible only by pr and not by any other ideal above p. Then we take this element in the correct exponent
         
@@ -2297,35 +2310,47 @@ def log_p_series_part(a,prime,M):
             52344619740974087640280522130685500861874/183670992315982423120115083940\
             975887159166493245638675235742454106002696789801120758056640625
     """
-    # print 'a = %s\n'%(a)
-    # print 'prime = %s, M = %s\n'%(prime,M)
+
     if a.valuation(prime) != 0:
         raise ValueError('The valuation of a with respect to prime is not zero')
-
+    # print 'mpika'
     K = prime.ring()
     g = K.gen()
     n = K.absolute_degree()
     p = prime.absolute_norm().factor()[0][0]
     f = prime.residue_class_degree()
     e = prime.absolute_ramification_index()
-    s = p**f - 1
-    divisor = s.divisors()
-    order = min([d for d in divisor if (a**d - 1).valuation(prime) > 0])
+    q = p**f - 1
 
+    divisor = q.divisors()
+    order = min([d for d in divisor if (a**d - 1).valuation(prime) > 0])
     gamma= a**order
     t = 0
+    w = RR((log(n)/log(p))).floor()
+
+    # import time
+    # start = time.time()
     while (gamma-1).valuation(prime) < e:
         t += 1
         gamma = gamma**p
+    # end = time.time()
+    # print 'time for gamma',end-start
     m = (gamma - 1).valuation(prime)/e
 
-    n = 1
+    # print 'm',m
+    # print 'before find n',n
+    # start = time.time()
+    # return 1
+    n = Integer(1)
+    step = 10 **(RR(log(M)/log(10))).floor()
+    # print 'step',step
     while n < (log(n)/log(p) + M)/m:
-        n += 1
-
+        n += step
+    # print 'n',n
     w = RR((log(n)/log(p))).floor()
     gamma = sum([ZZ(gi%(p**(M+w)))* g**i if gi.valuation(p) >= 0 else ZZ((gi * p**(-gi.valuation(p)))%(p**(M+w-gi.valuation(p)))) * p**(gi.valuation(p)) * g**i for i,gi in enumerate(gamma) if gi != 0],0)
-
+    # end = time.time()
+    # print 'time for finding n',end-start
     # import time
     # start = time.time()
 
@@ -2563,16 +2588,11 @@ def reduction_step_finite_case(prime,B0,M,M_logp,m0,c3,precision):
     #We evaluate 'u' and we construct the matrix A
     
     m = e * f
-    u = round(((1 + n/m) * log(B0))/log(p))
-    if u > (precision * log(2))/log(p):
-        # print 'increase precision'
-        return 0,True
-
-    # print 'n * B0**2',n * B0**2
+    u = 1
     finish = False
     while not finish:
         if u > (precision * log(2))/log(p):
-            # print 'increase precision'
+            # print 'increase precision-2'
             return 0,True
            
         #We construct the matrix A as a block matrix
@@ -2685,7 +2705,7 @@ def c_constants(G,precision):
         v = [0] * len(G)
         for j,g in enumerate(G):
             if abs(s(g)) != 1:
-                v[j] = log(abs(s(g)))
+                v[j] = 2 * log(abs(s(g)))
         A[i + len(finiteSup) + len(realSup)] = vector(v)
 
     #We find the minimum infinite norm of all the invertible submatrices of A 
@@ -2703,7 +2723,7 @@ def c_constants(G,precision):
         
         if d > 2**(-round(precision/2)):
             B = M.inverse()
-            a = max([sum([b.abs() for b in row]) for row in M.inverse().rows()])
+            a = max([sum([b.abs() for b in row]) for row in B.rows()])
             if a > c1:
                 c1 = a
     c2 = 1/c1
@@ -3125,11 +3145,14 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
 
     S1 = finiteSup1+complexSup1+realSup1
     S2 = finiteSup2+complexSup2+realSup2
-    
+
+    import  time
+
     ##  STEP 1 - Initial bound  ##
     
     #Calculating initial bound for the real case
-    
+    start = time.time()
+
     G1B1real = max([initial_bound_real_case(G2free,prime,G1c3) for prime in realSup1] + [0])
     G2B1real = max([initial_bound_real_case(G1free,prime,G2c3) for prime in realSup2] + [0])
     B1real = max(G1B1real,G2B1real)
@@ -3160,12 +3183,15 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
     B1finite = max(G1B1finite,G2B1finite)
     B1 = RR(max(B1real,B1complex,B1finite)).floor()
     # print 'B1',RR(B1).floor()
-    
+    end = time.time()
+    # print 'time for initial bound =%s'%(end-start)
+
     # print 'step 1'
     ##  STEP 2 - Reduction step  ##
     
     # Real case
     # print 'real'
+    start = time.time()
 
     # print 'G1'
     #G1
@@ -3175,7 +3201,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         finish = False
         while not finish:
             Bnew , increase_precision = reduction_step_real_case(place,Bold,G2free,G1c3)
-            
+
             #if we have to increase the precision we evaluate c1,c2,c3 constants again
 
             if not increase_precision:
@@ -3186,10 +3212,10 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             else:
                 #we evaluate with higher precision G1c1 , G1c2 and G1c3
 
-                temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
+                # temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
                 G1c1 ,G1c2, G1c3 = c_constants(G1free,2*place.codomain().precision())
                 place = higher_precision(place,2*place.codomain().precision())
-                      
+
         G1B2real = max(G1B2real,Bold)
 
     #print 'G2'
@@ -3200,7 +3226,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         finish = False
         while not finish:
             Bnew , increase_precision = reduction_step_real_case(place,Bold,G1free,G2c3)
-            
+
             #if we have to increase the precision we evaluate c1,c2,c3 constants again
 
             if not increase_precision:
@@ -3210,16 +3236,19 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                     finish = True
             else:
                 #we evaluate with higher precision G2c1 , G2c2 and G2c3
-                
-                temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
+
+                # temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
                 G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
                 place = higher_precision(place,2*place.codomain().precision())
-                      
+
         G2B2real = max(G2B2real,Bold)
     B2real = max(G1B2real,G2B2real)
-    
+    end = time.time()
+    # print 'time for real part %s'%(end-start)
+
     #  Complex case
     # print 'complex'
+    start = time.time()
 
     #print 'G1'
     #G1
@@ -3241,7 +3270,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                 else:
                     #we evaluate with higher precision G1c1 , G1c2 and G1c3
                 
-                    temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
+                    # temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
                     G1c1 ,G1c2, G1c3 = c_constants(G1free,2*place.codomain().precision())
                     place = higher_precision(place,2*place.codomain().precision())
             B_place = max(B_place,Bold_g0)
@@ -3267,23 +3296,28 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                 else:
                     #we evaluate with higher precision G2c1 , G2c2 and G2c3
                 
-                    temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
+                    # temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
                     G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
                     place = higher_precision(place,2*place.codomain().precision())
             B_place = max(B_place,Bold_g0)
         G2B2complex = max(G2B2complex,B_place)
     B2complex = max(G1B2complex,G2B2complex)
+    end = time.time()
+    # print 'time for complex part %s'%(end-start)
 
     #  Finite case
     # print 'finite'
+    start = time.time()
+
     # print 'G1'
-    # import time
-    #G1
     G1B2finite = 0
     # return G1finite_initialization
     # print 'len(G1finite_initialization)',len(G1finite_initialization)
     for P in G1finite_initialization:
         # print 'len(P[1])',len(P[1])
+        # print 'P[2]',P[2]
+        # print 'prime',P[0]
+        # return P[0],B1,P[2],P[1],G1c3
         # print 'B1',B1
         SunitK = K.S_unit_group(S = support_of_G(P[2],10)[0])
         B_place = 0
@@ -3291,6 +3325,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         # start = time.time()
         M_logp = [sum([c * log_p(g,P[0],prec) for c,g in zip(SunitK(m).list(),SunitK.gens_values()) if c != 0]) for m in P[2]]
         M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+        # low_u = 1
         # end = time.time()
         # print 'time for initial logp',end-start
         for m0 in P[1]:
@@ -3298,7 +3333,11 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             Bold_m0 = B1
             finish = False
             while not finish:
+                # start_reduce = time.time()
+                # print 'low_u,prec',low_u,prec
                 Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G1c3,prec)
+                # end_reduce = time.time()
+                # print 'time for reduce %s',end_reduce-start_reduce
 
                 #if we have to increase the precision we evaluate c1,c2,c3 constants again
                 if not increase_precision:
@@ -3308,7 +3347,8 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                         finish = True
                 else:
                     #we evaluate with higher precision G1c1, G1c2 and G1c3
-                    # print 'increase precision'
+                    # print 'increase precision',2*prec
+                    # low_u = prec
                     prec *= 2
                     G1c1 ,G1c2, G1c3 = c_constants(G1free,prec)
                     # start = time.time()
@@ -3320,19 +3360,22 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         G1B2finite = max(G1B2finite,B_place)
 
     # print 'G2'
-    #G2
+
     G2B2finite = 0
     for P in G2finite_initialization:
         B_place = 0
         prec = precision
         M_logp = [log_p(m,P[0],prec) for m in P[2]]
         M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+        # low_u = 1
         for m0 in P[1]:
             Bold_m0 = B1
             finish = False
             while not finish:
-                
+                # start_reduce = time.time()
                 Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
+                # end_reduce = time.time()
+                # print 'time for reduce %s',end_reduce-start_reduce
 
                 #if we have to increase the precision we evaluate c1,c2,c3 constants again
                 if not increase_precision:
@@ -3342,6 +3385,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                         finish = True
                 else:
                     #we evaluate with higher precision G2c1 , G2c2 and G2c3
+                    # low_u = prec
                     prec *= 2
                     G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
                     M_logp = [log_p(m,P[0],prec) for m in P[2]]
@@ -3349,6 +3393,8 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             B_place = max(B_place,Bold_m0)
         G2B2finite = max(G2B2finite,B_place)
     B2finite = max(G1B2finite,G2B2finite)
+    end = time.time()
+    # print 'time for finite part %s'%(end-start)
 
     return RR(max(B2real,B2complex,B2finite)).floor()
 
@@ -3442,8 +3488,9 @@ def Norm_subgroup_division_field(SK,SL):
     K = SK[0].ring()
     L = SL[0].ring()
     relative_degree = L.absolute_degree()/K.absolute_degree()
-    
+
     if relative_degree == 2:
+
         lambda_group = base_norm_condition(K,L,SK,SL)[0]
         SunitL = L.S_unit_group(S = SL)
         number_of_units_gens = len([1 for g in SunitL.gens_values() if g.is_integral() and g.absolute_norm().abs() == 1])
@@ -3775,6 +3822,35 @@ def mix_basis(G1,G2):
         
     return G12#,t
 
+#I may not need it
+# def upper_bound_for_C(bounds,place,G,delta_prime):
+#     r"""
+#
+#     INPUT:
+#         - ``bounds`` : a list of upper bounds for the exponents of the generators
+#         - ``place`` (ring morphism): an infinite place `\mathfrak p` of a number field `K`
+#         - ``G`` : a list `[g_1,g_2,\cdots,g_n]` of elements of `K^*` which are linear independent
+#         - ``delta_prime`` : a real positive number
+#
+#     OUTPUT:
+#         An upper bound for the constant `C` which appeas in the function ``trivial_Tp_infinite_place``.
+#     """
+#
+#     real_place = is_real_place(place)
+#
+#     if real_place:
+#         m = min([log(place(g).abs()) for g in G])
+#     else:
+#         m = min([2 * log(place(g).abs()) for g in G])
+#
+#     B = sum(bounds)/2
+#     A = sum([b**2 for b in bounds[:len(G)-1]])
+#     t = polygen(RR)
+#     f = (m**2-delta_prime**2) * t**2 + 2 * (m - B * delta_prime) * t + (2 - A - B**2)
+#
+#     print 'f',f(8000000000000)
+#     return max(f.roots())[0]
+
 
 def trivial_Tp_infinite_place(bounds,place,G,delta):
     r"""
@@ -3803,7 +3879,7 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
         sage: trivial_Tp_infinite_place(88,complex[0],G,1/R1)
             True
     """
-    # print 'trivial Tp infinite'
+
     K = place.domain()
     precision = place.codomain().precision()
     real_place = is_real_place(place)
@@ -3818,11 +3894,14 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
         C = max([round(1/log(place(g).abs()))+1 for g in G]+[2])
     else:
         C = max([round(1/log(place(g).abs()**2))+1 for g in G]+[2])
+
     t = len(G)
-    C_upper = C**10000 # arbitrary choice
+    C_upper = C**100 # arbitrary choice
+
     A = copy(identity_matrix(ZZ,t))
     
     if precision < log(C)/log(2):
+        # print 'increase precision-1'
         place = higher_precision(place,2 * precision)
     
     y = zero_vector(ZZ,t)
@@ -3848,14 +3927,13 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
                 bounds[t-1] = temp
 
         l = minimal_vector(A.transpose(),y)
-        if l <= sum([b**2 for b in bounds[:t-1]]) + (sum([b for b in bounds]) + C * delta_prime)**2:
+        if l <= sum([b**2 for b in bounds[:t-1]]) + (sum([b for b in bounds])/2 + C * delta_prime)**2:
             C = 10 * C
-            if C <= C_upper:
-                if precision < log(C)/log(2):
-                    place = higher_precision(place,2 * precision)
-            else:
-                finish = True
+            # print 'C',C
+            if C > C_upper:
+                return False
         else:
+            # print 'C',C
             return True    
     
     return False
@@ -4794,9 +4872,6 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
         return bound_Gl,R
     c1_units = c_constants(Glunit,200)[0]
 
-    # print 'R inside',R
-    # R = R**4
-    # print 'R',R
     #we are going to reduce the bound for units using Smart's ideas
     Bold = max([b for i,b in enumerate(bound_Gl) if i in units_index])
 
@@ -4813,12 +4888,12 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
     while True:
         # print 'delta_old',delta_old
         # print '1',[1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm,place,Gm[1:],delta_old)]
-        if len([1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm,place,Gm[1:],delta_new)]) == len(infinite_primes):
+        if len([1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm[1:],place,Gm[1:],delta_new)]) == len(infinite_primes):
             Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             delta_old = delta_new
             delta_new = sqrt(delta_old)
             reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(bound_Gl)]
-            # print 'reduce_bounds',reduce_bounds
+            print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
 
@@ -4848,6 +4923,7 @@ def is_S_unit_element(self,u):
         u = K(u)
     except TypeError:
         raise ValueError("%s is not an element of %s"%(u,K))
+    # print 'u.absolute_norm = %s'%(u.absolute_norm())
     if self._UnitGroup__S:
         m = pK.bnfissunit(self._UnitGroup__S_unit_data, pari(u)).mattranspose()
         if m.ncols() == 0:
@@ -4892,9 +4968,22 @@ def sieve_in_C2(Gl,Gm,B):
     bound_Gl = [Gl[0].multiplicative_order()]+[B]*(len(Gl)-1)
     bound_Gm = [Gm[0].multiplicative_order()]+[B]*(len(Gm)-1)
 
+    print 'bound_Gl-0',bound_Gl
+    print 'bound_Gm-0',bound_Gm
+
+    Sunits = []
+    Smunit_group = L.S_unit_group(S=Sm)
+    if len(Gl) <= 2:
+        for v in cartesian_product_iterator([xrange(bound_Gl[0]/2+1),xrange(-bound_Gl[1],bound_Gl[1]+1)]):
+            l = prod([g**e for g,e in zip(Gl,v)])
+            if is_S_unit_element(Smunit_group,1-l):
+                if l not in Sunits:
+                    Sunits.append(l)
+        return Sunits
     print 'bound_Gl-1',bound_Gl
     print 'bound_Gm-1',bound_Gm
 
+    start = time.time()
     #we pick only one of the two split primes
     Slreduce = []
     for p in Sl:
@@ -4922,13 +5011,18 @@ def sieve_in_C2(Gl,Gm,B):
     bound_Gm = bounds_for_exponents_from_bounds_for_primes(Gm,Sm,bound_Sm,bound_Gm)
     print 'bound_Gl-2',bound_Gl
     print 'bound_Gm-2',bound_Gm
+    end = time.time()
+    print 'time for Slreduce %s'%(end -start)
 
+    start = time.time()
     R = max([exp(sum([(log(s(g).abs())).abs() * b if is_real_place(s) else (2*log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl)])) for s in infinite_primes])
     # print 'R',R
     bound_Gl , R = reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
 
     print 'bound_Gl-3',bound_Gl
     print 'bound_Gm-3',bound_Gm
+    end = time.time()
+    print 'time for reduce unit generators %s'%(end-start)
 
     #we use triangle inequality to reduce the bound
 
@@ -4949,62 +5043,22 @@ def sieve_in_C2(Gl,Gm,B):
 
     Sunits = []
 
-    # #we evaluate lambda in case mu is divisible by a high power(arbitrary choice) of primes in SmnotSl
-    # #and we find new bounds for the exponents of Gm for the rest solutions
-    #
-    # Sunits = []
-    # #we make a choice of the exponents of primes in SmnotSl
-    # bound_SmnotSl = []
-    # for p in SmnotSl:
-    #     i = 1
-    #     I = p**i
-    #     while I.idealstar().order() == 1:
-    #         i += 1
-    #         I *= p
-    #     while I.idealstar().gens_orders()[0] < 2*sqrt(B): #arbitrary choice of bound
-    #         i += 1
-    #         I *= p
-    #     bound_SmnotSl.append(i)
-    #
-    # for e,p in zip(bound_SmnotSl,SmnotSl):
-    #     Sunits += sieve_for_p_not_in_support_of_Gl_C2(p**e,Gl,Sm,bound_Gl)
-    #
-    # for i,p in enumerate(Sm):
-    #     if p in SmnotSl:
-    #         bound_Sm[i] = bound_SmnotSl[SmnotSl.index(p)]
-    #     elif tau(p) in SmnotSl:
-    #         bound_Sm[i] = bound_SmnotSl[SmnotSl.index(tau(p))]
-    #
-    # bound_Gm = bounds_for_exponents_from_bounds_for_primes(Gm,Sm,bound_Sm,bound_Gm)
-    # print 'bound_Gl-5',bound_Gl
-    # print 'bound_Gm-5',bound_Gm
-    #
-    # bound_Gl,R = reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
-    #
-    # print 'bound_Gl-5',bound_Gl
-    # print 'bound_Gm-5',bound_Gm
-    #
-    # old_bound = copy(bound_Gl)
-    # # print '1-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
-    # for p in infinite_primes:
-    #     bound_Gl = reduce_bound_with_simple_inequalities_C3(Gl,p,bound_Gl,R)
-    # # print '2-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
-    #
-    # while old_bound != bound_Gl:
-    #     old_bound = copy(bound_Gl)
-    #     for p in infinite_primes:
-    #         bound_Gl = reduce_bound_with_simple_inequalities_C3(Gl,p,bound_Gl,R)
-    #     # print '3-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
-
     #Since we have reduced as much as we can, now we are able to make a simple loop to find the rest of the solutions
 
+    # import time
     Smunit_group = L.S_unit_group(S=Sm)
     for v in cartesian_product_iterator([xrange(bound_Gl[0]/2+1),xrange(bound_Gl[1]+1)]+[xrange(-b,b+1) for b in bound_Gl[2:]]):
+        # start = time.time()
         l = prod([g**e for g,e in zip(Gl,v)])
+        # if not vector(v).is_zero():
+        #     lpr = l/(l-1)
+        #     tau_lpr = tau(lpr)
+        #     if lpr+tau_lpr == 1:
         if is_S_unit_element(Smunit_group,1-l):
             if l not in Sunits:
                 Sunits.append(l)
-
+        # end = time.time()
+        # print 'time for each loop %s'%(end-start)
     return Sunits
 
 
@@ -5285,6 +5339,7 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
         if A[i,i] != 0:
             M,Gl,Gm = C2_extensions[i]
             print 'M=%s'%(M)
+            print 'rank of groups = %s, %s'%(len(Gl)-1,len(Gm)-1)
             start = time.time()
             bound = reduce_the_bound(M,Gl,Gm,200)
             end = time.time()
@@ -5328,6 +5383,7 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
 
             M,Gl,Gm = C2_extensions[maxedges]
             print 'M=%s'%(M)
+            print 'rank of groups = %s, %s'%(len(Gl)-1,len(Gm)-1)
             start = time.time()
             bound = reduce_the_bound(M,Gl,Gm,200)
             end = time.time()
@@ -5470,12 +5526,12 @@ def reduce_bound_for_unit_generators_C3(Gl,bounds,R):
     #we reduce the bounds for the units
     reduce_bounds = bounds
     while True:
-        # print 'Bold',Bold
-        if len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds,place,Gl[1:],delta_new)]) == len(infinite_primes):
-            Bold = min((c1_units * log(delta_new).abs() + logRlprime).floor(),Bold)
+        # print 'delta_new',delta_new
+        if len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)]) == len(infinite_primes):
+            Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             delta_old = delta_new
             delta_new = sqrt(delta_new)
-            reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(bounds)]
+            reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(reduce_bounds)]
             # print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
@@ -5517,11 +5573,12 @@ def reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bounds):
     maxorder = lcm([max((f[0]**f[1]).idealstar().gens_orders()) for f in factors]+[lcm_hsymbol])
 
 
-    congruence_bounds = [xrange(bounds[0])]+[xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in bounds[1:]]
+    congruence_bounds = [xrange(bounds[0])]+[xrange(maxorder) if 2*b >= maxorder else xrange(-b,b+1) for b in bounds[1:]]
     Bpr = [0 if 2*b >= maxorder else 1 for b in bounds[1:]]
     # print 'congruence_bound=%s'%(congruence_bounds)
     count = 0
-    elements = []
+    elements_l = []
+    elements_m = []
     for v in cartesian_product_iterator(congruence_bounds):
         v = vector(v)
         if len([1 for M in Q if (v*M*v).is_zero()]) == len(Q):
@@ -5531,7 +5588,8 @@ def reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bounds):
             if len([1 for f in factors if (l+m-1).valuation(f[0]) >= f[1]]) == n:
                 # print 'v-2',v
                 count += 1
-                elements.append(l)
+                elements_l.append(l)
+                elements_m.append(m)
     # print 'count=%s'%(count)
     # print 'prod',prod([len(c) for c in congruence_bounds])
     # print 'percent=%s'%((QQ(count)/QQ(prod([len(c) for c in congruence_bounds]))).n(21))
@@ -5543,13 +5601,24 @@ def reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bounds):
     B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(bounds[1:],congruence_bounds[1:])]
     # print 'B',B
     Gl_final = [g**len(c) if b == 0 else 1 for g,c,b in zip(Gl[1:],congruence_bounds[1:],Bpr)]
+    Gm_final = [g**len(c) if b == 0 else 1 for g,c,b in zip(Gm[1:],congruence_bounds[1:],Bpr)]
+    # print 'number of final checks %s'%(count * prod([2*b+1 if br == 0 else 1 for b,br in zip(B,congruence_bounds[1:])]))
+    # import time
     for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bpr)]):
+        # start = time.time()
         # print 'v',v
-        u = prod([g **e for g,e in zip(Gl_final,v)])
-        for l in elements:
-            if is_S_unit_element(SmunitL,1 - l*u):
-                Sunits.append(l*u)
-
+        l0 = prod([g **e for g,e in zip(Gl_final,v)])
+        m0 = prod([g **e for g,e in zip(Gm_final,v)])
+        for l1,m1 in zip(elements_l,elements_m):
+            # start1 = time.time()
+            if l0*l1 + m0*m1 == 1:
+            # if is_S_unit_element(SmunitL,1 - l*u):
+                Sunits.append(l0*l1)
+            # end1 = time.time()
+            # print 'time for each element %s'%(end1 - start1)
+        # end = time.time()
+        # print 'time for each loop %s'%(end - start)
+        # return 1
     return Sunits
 
 
@@ -5648,14 +5717,14 @@ def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
         # print 'congruence_bounds',congruence_bounds
         # print 'B',B
         count = 0
-        elements = []
+        m0_elements = []
         valuations = []
         start_congruence = time.time()
         for v in cartesian_product_iterator(congruence_bounds):
             v = vector(v)
             if vector([((v*col)+m0)%m for m,m0,col in zip(prime_orders,prime_m0log,prime_M.columns())]).is_zero():
                 # print 'v',v
-                elements.append(new_m0 * prod([g**e for g,e in zip(new_Gm,v)]))
+                m0_elements.append(new_m0 * prod([g**e for g,e in zip(new_Gm,v)]))
                 count += 1
         end_congruence = time.time()
         # print 'time for congruence %s'%(end_congruence - start_congruence)
@@ -5665,28 +5734,18 @@ def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
 
         #we determine the solutions
 
-        elements_sigma_square = [sigma(sigma(m0)) for m0 in elements]
+        l0_elements = [sigma(sigma(1/m0)) for m0 in m0_elements]
         if count != 0:
-            new_Gm_powers = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
-            new_Gm_powers_sigma_square = [sigma(sigma(g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
-            # print 'cartesian_product',[xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bprime)]
-            # count_big = 0
-            # count_small = 0
+            new_Gm_powers_m = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
+            new_Gm_powers_l = [sigma(sigma(1/g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
             for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bprime)]):
-                # print 'v-2',v
-                # count_big += 1
-                m1 = prod([g**e for g,e in zip(new_Gm_powers,v)])
-                m1_sigma = prod([g**e for g,e in zip(new_Gm_powers_sigma_square,v)])
-                for m0,m0_sigma in zip(elements,elements_sigma_square):
-                    # l = 1 - m0 * m1
-                    # if is_S_unit_element(SunitL,l):
-                    # if sigma(l) * (1-l) == 1:
-                    if m0_sigma * m1_sigma - m0 * m1 * m0_sigma * m1_sigma == 1:
-                        # count_small += 1
-                        # print 'percent last loop',QQ(count_small)/QQ(count_big)
-                        if is_S_unit_element(SunitL,1 - m0 * m1) or is_S_unit_element(SunitL,1 - 1/(m0 * m1)):
-                            if m0 * m1 not in Sunits:
-                                Sunits.append(m0 * m1)
+                m1 = prod([g**e for g,e in zip(new_Gm_powers_m,v)])
+                l1 = prod([g**e for g,e in zip(new_Gm_powers_l,v)])
+                for m0,l0 in zip(m0_elements,l0_elements):
+                    if m0 * m1 + l0 * l1 == 1:
+                        m = m0 * m1
+                        if m0 * m1 not in Sunits:
+                            Sunits.append(m)
         # end = time.time()
         # print 'time for one loop %s'%(end-start)
     return Sunits,exp
@@ -5812,6 +5871,7 @@ def sieve_in_C3(Gl,Gm,B):
 
     #we determine the solutions which are divisible by high powers of primes in Slreduce
 
+    # print 'Slreduce',Slreduce
     for k,p in enumerate(Slreduce):
         # return p,bound_Gl,bound_Slreduce[k]
         solutions, exp1 = sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Slreduce[k])
@@ -5858,6 +5918,7 @@ def sieve_in_C3(Gl,Gm,B):
                     I = L.ideal(pL.ideal_below())
                     find_prime = True
         p = Primes().next(ZZ(p))
+    # print 'I',I
 
     #we do the final sieve using the unramified and split prime we found above and the Hilbert symbol
     for l in reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bound_Gl):
@@ -5921,6 +5982,7 @@ def elliptic_curves_with_good_reduction_with_cubic_two_division_field(K,S):
         print 'L=%s'%(L)
         SL = sum([L.primes_above(p) for p in SK],[])
         Gl,Gm = Norm_subgroup_division_field(SK,SL)
+        print 'rank of Gl = %s, %s'%(len(Gl)-1,L.S_unit_group(S=SL).rank())
         start = time.time()
         bound = reduce_the_bound(L,Gl,Gm,200)
         end = time.time()
@@ -5971,14 +6033,11 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
 
     #we find which generators are units
     units_index = [i for i,g in enumerate(Gl) if g.is_integral() and g.absolute_norm().abs() == 1 and g.multiplicative_order() == Infinity]
-    units_index = [i for i in units_index if len([1 for p in infinite_primes if p(Gl[i]).abs() != 1]) > 0]
-    # print 'units_index',units_index
     Glunit = [g for i,g in enumerate(Gl) if i in units_index]
+
     if len(Glunit) == 0:
         return bounds,R
-    # print 'Glunit',Glunit
     c1_units = c_constants(Glunit,200)[0]
-    # print 'c1_units',c1_units
 
     #we are going to reduce the bound for units using Smart's ideas
     Bold = max([bounds[b] for b in units_index])
@@ -5999,15 +6058,15 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
     # print 'reduce_bounds',reduce_bounds
     while True:
         # print 'Bold',Bold
-        # print 'delta_new',1/delta_new
-        sm = len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds,place,Gm[1:],delta_new)])
-        sl = len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds,place,Gl[1:],delta_new)])
-        if sm == len(infinite_primes) and sl == len(infinite_primes):
-            # print 'log_delta',-log(delta_new)
-            Bold = min((c1_units * (log(delta_new).abs() + logRlprime)).floor(),Bold)
+        # print 'delta_new',delta_new
+        sm = len([1 for place in infinite_primes_Gm if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gm[1:],delta_new)])
+        sl = len([1 for place in infinite_primes_Gl if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)])
+        if sm == len(infinite_primes_Gm) and sl == len(infinite_primes_Gl):
+            Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             delta_old = delta_new
             delta_new = sqrt(delta_new)
-            reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(bounds)]
+            reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(reduce_bounds)]
+            logRlprime = max([sum([b * log(p(g).abs()).abs() for b,g in zip(reduce_bounds,Gl) if g not in Glunit]) if is_real_place(p) else sum([2 * b * log(p(g).abs()).abs() for b,g in zip(reduce_bounds,Gl) if g not in Glunit])for p in infinite_primes])
             # print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
@@ -6237,13 +6296,14 @@ def elliptic_curves_with_good_reduction_with_S3_two_division_field(K,S):
     print 'time for fields = %s'%(end-start)
 
     J = []
+    i = 1
     for f,L in zip(cubic_polynomials,S3_fields):
         print 'L=%s'%(L)
         print 'M',L.base_field()
-        print 'f',f
         SL = sum([L.primes_above(p) for p in SK],[])
         Gl,Gm = Norm_subgroup_division_field(SK,SL)
-        # print 'Gl= %s'%(len(Gl))
+        print 'rank of Gl = %s'%(len(Gl)-1)
+        print 'rank of S-unit group = %s'%(L.S_unit_group(S = SL).rank())
         start = time.time()
         bound = reduce_the_bound(L,Gl,Gm,200)
         end = time.time()
@@ -6261,3 +6321,4 @@ def elliptic_curves_with_good_reduction_with_S3_two_division_field(K,S):
     from sage.schemes.elliptic_curves.ell_egros import (egros_from_jlist, egros_from_j, egros_get_j)
 
     return [QQ(j) for j in J if len(egros_from_j(QQ(j),S))]
+

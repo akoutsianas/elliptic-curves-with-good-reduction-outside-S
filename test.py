@@ -5,11 +5,8 @@ def test(j):
     # j = L(j)
     print 'j',j
     f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
-    # N = f.splitting_field('a')
+    N = f.splitting_field('a')
     f = f.change_ring(L)
-    print f.roots()
-    # print 'N.disc',N.absolute_discriminant()
-    # print 'N.embeddings(L)',len(N.embeddings(L))
     for r in f.roots():
         print 'i',is_in_G(r[0],Gl)
         if is_in_G(r[0],Gl):
@@ -58,7 +55,7 @@ def test1(P,B1,G1):
                 print 'time for increase logp',end-start
         B_place = max(B_place,Bold_m0)
 
-def testC2(J):
+def testC2():
     import time
     C = CremonaDatabase()
     o = open('Desktop/results.txt','w')
@@ -66,15 +63,15 @@ def testC2(J):
     o.write('C2 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(113)
+    p = Integer(5)
     data = []
-    while p <= 113:
+    while p <= 5:
     # for p in [Integer(89)]:
-        S = [11,p]
+        S = [2,3,p]
         print 'p',p
 
         #We compare with Cremona's database
-        N = [11**j * p**k for j,k in cartesian_product_iterator([xrange(6),xrange(3)])]
+        N = [2**i * 3**j * p**k for i,j,k in cartesian_product_iterator([xrange(9),xrange(3),xrange(3)])]
         # N = [p**i for i in range(9)]
 
         ED = C.list(N)
@@ -94,7 +91,7 @@ def testC2(J):
 
         # print 'Jdata',Jdata
         start = time.time()
-        # J = elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(QQ,[Integer(3),Integer(p)])
+        J = elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(QQ,[Integer(2),Integer(3),Integer(p)])
         end = time.time()
         t = RR(end - start)
         min = (t/60).floor()
@@ -148,7 +145,7 @@ def testC2(J):
     return 1
 
 
-def testC3(J):
+def testC3():
     import time
     C = CremonaDatabase()
     o = open('Desktop/results.txt','w')
@@ -239,15 +236,15 @@ def testS3():
     o.write('S3 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(53)
+    p = Integer(5)
     data = []
-    while p <= 200:
+    while p <= 7:
     # for p in [Integer(89)]:
-        S = [3,p]
+        S = [2,3,p]
         print 'p',p
 
         #We compare with Cremona's database
-        N = [3**j * p**k for j,k in cartesian_product_iterator([xrange(6),xrange(3)])]
+        N = [2**i * 3**j * p**k for i,j,k in cartesian_product_iterator([xrange(9),xrange(6),xrange(3)])]
         # N = [p**i for i in range(9)]
 
         ED = C.list(N)
@@ -262,7 +259,7 @@ def testS3():
 
         # print 'Jdata',Jdata
         start = time.time()
-        J = elliptic_curves_with_good_reduction_with_S3_two_division_field(QQ,[Integer(3),Integer(p)])
+        J = elliptic_curves_with_good_reduction_with_S3_two_division_field(QQ,[Integer(2),Integer(3),Integer(p)])
         end = time.time()
         t = RR(end - start)
         min = (t/60).floor()

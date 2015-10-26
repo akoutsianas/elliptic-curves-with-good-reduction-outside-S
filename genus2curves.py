@@ -18,3 +18,4 @@ def discriminant(C):
     P, Q = C.hyperelliptic_polynomials()
 
     return 2**(4*g)*(P+Q**2/4).discriminant()
+
