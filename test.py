@@ -5,7 +5,7 @@ def test(j):
     # j = L(j)
     print 'j',j
     f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
-    N = f.splitting_field('a')
+    # N = f.splitting_field('a')
     f = f.change_ring(L)
     for r in f.roots():
         print 'i',is_in_G(r[0],Gl)
@@ -15,7 +15,7 @@ def test(j):
         #         print (r[0]).valuation(prime)
         #         return r[0]
     #                 return r[0]#[SunitL(r[0]) for r in f.roots()][0].value()
-    return 1
+    return N
 
 def test1(P,B1,G1):
     import time
@@ -63,43 +63,47 @@ def testC2():
     o.write('C2 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(5)
+    p = Integer(31)
     data = []
-    while p <= 5:
+    while p <= 31:
     # for p in [Integer(89)]:
-        S = [2,3,p]
-        print 'p',p
+    #     S = [2,3,p]
+    #     print 'p',p
 
         #We compare with Cremona's database
-        N = [2**i * 3**j * p**k for i,j,k in cartesian_product_iterator([xrange(9),xrange(3),xrange(3)])]
+        # N = [2**i * 3**j * p**k for i,j,k in cartesian_product_iterator([xrange(9),xrange(3),xrange(3)])]
         # N = [p**i for i in range(9)]
 
-        ED = C.list(N)
+        # ED = C.list(N)
 
-        EC21 = [e for e in ED if not e.two_division_polynomial().is_irreducible()]
-        EC2 = [E for E in EC21 if len(E.two_division_polynomial().factor()) == 2]
+        # EC21 = [e for e in ED if not e.two_division_polynomial().is_irreducible()]
+        # EC2 = [E for E in EC21 if len(E.two_division_polynomial().factor()) == 2]
 
-        JC2 = []
-        for E in EC2:
-            if E.j_invariant() not in JC2:
-                JC2.append(E.j_invariant())
-
+        # JC2 = []
+        # for E in EC2:
+        #     if E.j_invariant() not in JC2:
+        #         JC2.append(E.j_invariant())
+        #
         Jdata = []
-        for E in EC21:
-            if E.j_invariant() not in Jdata:
-                Jdata.append(E.j_invariant())
+        # for E in EC21:
+        #     if E.j_invariant() not in Jdata:
+        #         Jdata.append(E.j_invariant())
 
         # print 'Jdata',Jdata
+        M = NumberField(x**2-x-1,'a')
+        S = M.primes_above(31)
+        print 'S',S
         start = time.time()
-        J = elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(QQ,[Integer(2),Integer(3),Integer(p)])
+        J = elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(M,S)
         end = time.time()
         t = RR(end - start)
         min = (t/60).floor()
         sec = (t-min*60).floor()
+        S = M.primes_above(31)
         if min != 0:
             o = open('Desktop/results.txt','a')
             # o = open('resultsfermat.txt','a')
-            o.write('S = %s, time %smin %ss\n'%(str(S),str(min),str(sec)))
+            o.write('f = %s, S = %s, time %smin %ss\n'%(M.defining_polynomial(),str(S),str(min),str(sec)))
             o.write('J = %s\n'%(str(J)))
 
             JdatanotJ = []
@@ -120,7 +124,7 @@ def testC2():
         else:
             o = open('Desktop/results.txt','a')
             # o = open('resultsfermat.txt','a')
-            o.write('S = %s, time %ss\n'%(str(S),str(sec)))
+            o.write('f = %s, S = %s, time %ss\n'%(M.defining_polynomial(),str(S),str(sec)))
             o.write('J = %s\n'%(str(J)))
 
             JdatanotJ = []
@@ -153,36 +157,40 @@ def testC3():
     o.write('C3 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(73)
+    p = Integer(31)
     data = []
-    while p <= 73:
+    while p <= p:
     # for p in [Integer(89)]:
-        S = [3,p]
-        print 'p',p
+    #     S = [3,p]
+    #     print 'p',p
 
         #We compare with Cremona's database
-        N = [3**j * p**k for j,k in cartesian_product_iterator([xrange(6),xrange(3)])]
+        # N = [3**j * p**k for j,k in cartesian_product_iterator([xrange(6),xrange(3)])]
         # N = [p**i for i in range(9)]
 
-        ED = C.list(N)
-
-        EC3S3 = [e for e in ED if e.two_division_polynomial().is_irreducible()]
-        EC3 = [E for E in EC3S3 if E.two_division_polynomial().discriminant().is_square()]
+        # ED = C.list(N)
+        #
+        # EC3S3 = [e for e in ED if e.two_division_polynomial().is_irreducible()]
+        # EC3 = [E for E in EC3S3 if E.two_division_polynomial().discriminant().is_square()]
         Jdata = []
-        for E in EC3:
-            if E.j_invariant() not in Jdata:
-                Jdata.append(E.j_invariant())
+        # for E in EC3:
+        #     if E.j_invariant() not in Jdata:
+        #         Jdata.append(E.j_invariant())
 
+        M = NumberField(x**2- x - 1,'a')
+        S = M.primes_above(p)
+        print 'S',S
         start = time.time()
-        # J = elliptic_curves_with_good_reduction_with_cubic_two_division_field(QQ,[Integer(5),Integer(p)])
+        J = elliptic_curves_with_good_reduction_with_cubic_two_division_field(M,S)
         end = time.time()
         t = RR(end - start)
         min = (t/60).floor()
         sec = (t-min*60).floor()
+        S = M.primes_above(p)
         if min != 0:
             o = open('Desktop/results.txt','a')
             # o = open('resultsfermat.txt','a')
-            o.write('S = %s, time %smin %ss\n'%(str(S),str(min),str(sec)))
+            o.write('f = %s, S = %s, time %smin %ss\n'%(M.defining_polynomial(),str(S),str(min),str(sec)))
             o.write('J = %s\n'%(str(J)))
 
             JdatanotJ = []
@@ -203,7 +211,7 @@ def testC3():
         else:
             o = open('Desktop/results.txt','a')
             # o = open('resultsfermat.txt','a')
-            o.write('S = %s, time %ss\n'%(str(S),str(sec)))
+            o.write('f = %s, S = %s, time %ss\n'%(M.defining_polynomial(),str(S),str(sec)))
             o.write('J = %s\n'%(str(J)))
 
             JdatanotJ = []
@@ -236,34 +244,37 @@ def testS3():
     o.write('S3 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(5)
+    p = Integer(31)
     data = []
-    while p <= 7:
+    while p <= 31:
     # for p in [Integer(89)]:
-        S = [2,3,p]
-        print 'p',p
-
-        #We compare with Cremona's database
-        N = [2**i * 3**j * p**k for i,j,k in cartesian_product_iterator([xrange(9),xrange(6),xrange(3)])]
+    #     S = [2,p]
+    #     print 'p',p
+    #
+    #     We compare with Cremona's database
+    #     N = [2**i * p**k for i,k in cartesian_product_iterator([xrange(9),xrange(6)])]
         # N = [p**i for i in range(9)]
 
-        ED = C.list(N)
+        # ED = C.list(N)
 
-        EC3S3 = [e for e in ED if e.two_division_polynomial().is_irreducible()]
-
-        ES3 = [E for E in EC3S3 if not E.two_division_polynomial().discriminant().is_square()]
+        # EC3S3 = [e for e in ED if e.two_division_polynomial().is_irreducible()]
+        #
+        # ES3 = [E for E in EC3S3 if not E.two_division_polynomial().discriminant().is_square()]
         Jdata = []
-        for E in ES3:
-            if E.j_invariant() not in Jdata:
-                Jdata.append(E.j_invariant())
+        # for E in ES3:
+        #     if E.j_invariant() not in Jdata:
+        #         Jdata.append(E.j_invariant())
 
         # print 'Jdata',Jdata
+        M = NumberField(x**2-x-1,'a')
+        S = M.primes_above(p)
         start = time.time()
-        J = elliptic_curves_with_good_reduction_with_S3_two_division_field(QQ,[Integer(2),Integer(3),Integer(p)])
+        J = elliptic_curves_with_good_reduction_with_S3_two_division_field(M,S)
         end = time.time()
         t = RR(end - start)
         min = (t/60).floor()
         sec = (t-min*60).floor()
+        S = M.primes_above(p)
         if min != 0:
             o = open('Desktop/results.txt','a')
             # o = open('resultsfermat.txt','a')

@@ -360,7 +360,25 @@ def reduce_number_of_v0_S3(prime,Gm,Gl,m0,l0,D,V0,Bprime):
 
 
 
+def testegros(SQ):
 
+    from sage.schemes.elliptic_curves.ell_egros import egros_from_j_1728
+    SK = K.primes_above(prod(SQ))
+    # print 'SK',SK
+    curvesK = [E.change_ring(QQ).minimal_model() for E in egros_from_1728_over_K(K,SK)]
+    curvesQ = [E for E in egros_from_j_1728(SQ)]
+
+    print 'number over K',len(curvesK)
+    print 'number over Q',len(curvesQ)
+
+    # return curvesK,curvesQ
+    if len(curvesK) != len(curvesQ):
+        raise ValueError('They have found different number of curves')
+    for E in curvesK:
+        if E not in curvesQ:
+            print 'I find this not in both',E
+
+    return curvesK,curvesQ
 
 
 #we don't use this in C2 case

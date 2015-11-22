@@ -603,23 +603,146 @@ def sieve_with_hilbert_symbol_over_QQ(S,B):
 
 ###### Norm condition step ######
 
-def brace_map(a,S,p):
+def is_S_principal(I,S):
+    r"""
+
+    INPUT:
+        - ``I`` : a fractional ideal of a number field `K`
+        - ``S`` : a finite set of primes of `K`
+
+    OUTPUT:
+        - True, if the natural image of ``I`` in the group of S-ideals is principal, otherwise False
+        - a generator if ``I`` is a principal S-ideal, otherwise ``I``
+
+    EXAMPLE::
+
+        sage:
+    """
+    if S == []:
+        if I.is_principal():
+            return True,I.gens_reduced()[0]
+        else:
+            return False,I
+
+    K = I.ring()
+    Cl = K.class_group()
+
+
+    if Cl(I).is_trivial():
+        return True, I.gens_reduced()[0]
+
+    C = diagonal_matrix(Cl.gens_orders())
+    A = matrix(ZZ,[Cl(p).list() for p in S])
+    AC = block_matrix([[A],[C]])
+    B = matrix(ZZ,Cl(I).list())
+    ACB = block_matrix([[AC],[B]])
+    print 'AC',AC
+    print 'ACB',ACB
+
+    #we check if the matrices AC and ACB define the same Z-module
+
+    if AC.row_module().index_in(ACB.row_module()) == 1:
+        v = AC.solve_left(-B)[0]
+        J = I*prod([p**e for p,e in zip(S,v)])
+        return True,J.gens_reduced()[0]
+    else:
+        return False,I
+
+
+def in_CKSn(I,S,n):
+    r"""
+
+    INPUT:
+        - ``I`` : a fractional ideal of a number field `K`
+        - ``S`` : a finite set of prime ideals of `K`
+        - ``n``: a natural number
+
+    OUTPUT:
+        True, if the natural image of ``I`` in `\mathcal C_{K,S}` lies in `\mathcal C_{K,S}[n]`.
+
+    EXAMPLE::
+
+        sage:
+    """
+
+    fac = (I**n).factor()
+    J = I.parent().ring().ideal(1)
+    for prime in fac:
+        if prime[0] in S:
+            J *= prime[0]**prime[1]
+
+    return (I**n/J).is_principal()
+
+
+def in_nCKSmn(I,S,m,n):
+    r"""
+
+    INPUT:
+        - ``I`` : a fractional ideal of a number field `K`
+        - ``S`` : a finite set of prime ideals of `K`
+        - ``m``: a natural number
+        - ``n`` : a natural number
+
+    OUTPUT:
+        - True, if the natural image of ``I`` in `\mathcal C_{K,S}` lies in `n\mathcal C_{K,S}[mn]`.
+        - If True, an ideal `J` such that `I=J^n` in the `S`-class group. Otherwise, I
+    EXAMPLE::
+
+        sage:
+    """
+
+    K = I.ring()
+    Cls = K.S_class_group(S)
+    gens = Cls.gens_ideals()
+    orders = Cls(I).list()
+    J = K.ideal(1)
+    for i,t in enumerate(orders):
+        if t%(m*n) != 0:
+            return False,I
+        else:
+            print 't/m',t/m
+            J *= gens[i]**(t/m)
+
+    return True,J
+
+
+def in_KSn(x,S,n):
+    r"""
+
+    INPUT:
+        - ``x`` : an element in a number field `K`
+        - ``S`` : a set of finite ideals of `K`
+        - ``n`` : a natural number
+
+    OUTPUT:
+        True, if `x\in K(S,n)`, otherwise False
+
+    """
+
+    for prime in x.parent().ideal(x).factor():
+        if prime[0] not in S and prime[1]%n != 0:
+            return False
+
+    return True
+
+
+def brace_map(a,S,n):
     r"""
     
     INPUT:
         - ``a`` : an element of the `K(S,p)` Selmer group of a number field `K`
         - ``S`` : a set of prime ideals of `K`
-        - ``p`` : a natural prime number
+        - ``n`` : a natural number
     
     OUTPUT:
         - ``b`` : a vector that represents [a] in S - Class group of `K`
-        - ``J`` : the fractioal ideal that represents [a] in S - Class group of `K`
+        - ``J`` : the fractional ideal that represents [a] in S - Class group of `K`
     
     COMMENT:
         
         It is the image of the surjective map on the short exact sequence 
         
-        `1\longrightarrow\mathcal O^*_{K,S}/\mathcal O^{*p}_{K,S}\xrightarrow{i} K(S,p)\xrightarrow{[a]}\mathcal C_{K,S}[p]\longrightarrow 1`
+        `1\longrightarrow\mathcal O^*_{K,S}/\mathcal O^{*n}_{K,S}\xrightarrow{i} K(S,n)\xrightarrow{[a]}\mathcal C_{K,S}[n]\longrightarrow 1`
         
     EXAMPLE::
         
@@ -638,21 +761,17 @@ def brace_map(a,S,p):
             ValueError: The element a does not lie in K(S,p)     
     """
     
-    if p not in Primes():
-        raise ValueError('p is not a prime')
-    
     K = a.parent()
     Cls = K.S_class_group(S)
     fac = K.ideal(a).factor()
     J = K.ideal(1)
     for prime in fac:
         if prime[0] not in S:
-            m = prime[1]/p
-            if m not in ZZ:
-                raise ValueError('The element a does not lie in K(S,p)')
+            if prime[1] % n != 0:
+                raise ValueError('The element a does not lie in K(S,n)')
+            m = prime[1]/n
             J = J*(prime[0])**m
-    
-    
+
     b = Cls(J).list()
     
     return b,J
@@ -1182,14 +1301,16 @@ def c3_z3_not(K,S):
         if p not in SQ:
             SQ.append(p)
     cubic_extensions = []
+    print 'prin for beta,trace....',len(T)
+    import time
+    start = time.time()
     for beta,trace in T:
         #we evaluate a 3 degree polynomial 'g'
-              
         g = t**3 - 3*beta*t - trace
         gdisc = g.discriminant()
 
         #if 'g' is irreducible and its relative discriminant is a S unit then it is a defining polynomial for a possible extension
-
+        # print 'prin g.is_irreducible'
         if g.is_irreducible():
             L = K.extension(g,'c3')
 
@@ -1202,7 +1323,8 @@ def c3_z3_not(K,S):
                 if K.ideal(L.relative_discriminant()).is_S_unit(S = S):
                 # if len([I[0] for I in L.relative_discriminant().factor() if I[0] not in S]) == 0:
                     cubic_extensions.append(L)
-
+    end = time.time()
+    print 'time for each quadratic %s'%(end-start)
     return cubic_extensions
 
 
@@ -1309,18 +1431,18 @@ def s3_extensions(K,S):
     quadratic = quadratic_extensions(K,S)
     polynomials = []
     fields = []
-
+    print 'len(quadratic)',len(quadratic)
     for M in quadratic:
         g = [e for e in M.automorphisms() if e(M.gen()) != M.gen()][0]  #the generator of Gal(M/K)
         SM = sum([M.primes_above(p) for p in S],[])                   
 
-
+        print 'prin cubics'
         cubics = cubic_extensions(M,SM) #all the cubic extensions of M unramified outside SM
-
+        print 'after cubics'
         eKM = [e for e in K.embeddings(M) if e.preimage(M(K.gen())) == K.gen()][0] #the compatible embbeding of K in M
 
         #we check when L is an S3 extension and we give a 3-degree polynomial over K such that its splitting is L. By 
-        
+
         for L in cubics:
             
             f = L.defining_polynomial()
@@ -1510,6 +1632,282 @@ def j_invariant(l):
     """
     
     return (2**8 *(l**2 - l + 1)**3)/(l**2 * (1-l)**2)
+
+
+def has_good_reduction_outside_S_over_K(E,S):
+    r"""
+
+    INPUT:
+        - ``E`` : an elliptic curve
+        - ``S`` : a set of primes of the field of definition of ``E``
+
+    OUTPUT:
+        True, if ``E`` has good reduction outside ``S``, otherwise False. We use Lemma 3.1 of the reference
+
+    REFERENCE:
+        J. E. Cremona and M. P. Lingham. Finding All Elliptic Curves with Good Reduction Outside a Given Set of Primes.
+        Experimental Mathematics, 16(3):303-312, 2007.
+
+    """
+    K = E.base_ring()
+    D = E.discriminant()
+    d = D.absolute_norm()
+
+    SQ = []
+    for P in S:
+        p = P.absolute_norm().factor()[0][0]
+        if p not in SQ:
+            SQ.append(p)
+
+    d = d.prime_to_S_part(SQ)
+
+    for p in K.primes_above(d):
+        if not E.has_good_reduction(p) and p not in S:
+            return False
+
+    return True
+
+
+def egros_from_0_over_K(K,S):
+    r"""
+
+    INPUT:
+        - ``K`` : a number field
+        - ``S`` : a list of primes of ``K``
+
+    OUTPUT:
+
+        A list with all elliptic curves over ``K`` with good reduction outside ``S`` and `j`-invariant equal to 0.
+
+    REFERENCE:
+        J. E. Cremona and M. P. Lingham. Finding All Elliptic Curves with Good Reduction Outside a Given Set of Primes.
+        Experimental Mathematics, 16(3):303-312, 2007.
+
+    EXAMPLE::
+
+        sage:
+
+    """
+
+    if K == QQ:
+        from sage.schemes.elliptic_curves.ell_egros import egros_from_j_0
+        return egros_from_j_0(S)
+
+    #S contains a prime above 3 such that its order at 3 is odd
+    for p in K.primes_above(3):
+        if (K(3)).valuation(p) %2 == 1 and p not in S:
+            return []
+
+    Sprime = copy(S)
+
+    #we add suitable primes above 2
+    for p in K.primes_above(2):
+        if (K(2)).valuation(p)%3 == 1 or (K(2)).valuation(p)%3 == -1 and p not in Sprime:
+            Sprime.append(p)
+
+    #we add suitable primes above 3
+    for p in K.primes_above(3):
+        if (K(2)).valuation(p)%4 == 2 and p not in Sprime:
+            Sprime.append(p)
+
+    SprimenotS_2 = [p for p in Sprime if p not in S and (K(2)).valuation(p) != 0]
+    SprimenotS_3 = [p for p in Sprime if p not in S and (K(3)).valuation(p) != 0]
+
+    import time
+
+    selmergens,orders = K.selmer_group(Sprime,6,orders=True)
+
+    curves = []
+    if len(SprimenotS_2) + len(SprimenotS_3) == 0:
+        for v in cartesian_product_iterator([xrange(b) for b in orders]):
+            w = prod([g**i for g,i in zip(selmergens,v)])
+            E = EllipticCurve([0,w])
+            if has_good_reduction_outside_S_over_K(E,S):
+                curves.append(E)
+        return curves
+
+    for v in cartesian_product_iterator([xrange(b) for b in orders]):
+        w = prod([g**i for g,i in zip(selmergens,v)])
+        if len([1 for p in SprimenotS_3 if w.valuation(p)%6 == 3 and (K(3)).valuation(p)%4 == 2]) == len(SprimenotS_3):
+            n1 = len([1 for p in SprimenotS_2 if w.valuation(p)%6 == 4 and (K(2)).valuation(p)%3 == 1])
+            n2 = len([1 for p in SprimenotS_2 if w.valuation(p)%6 == 2 and (K(2)).valuation(p)%3 == 2])
+            if n1+n2 == len(SprimenotS_2):
+                E = EllipticCurve([0,w])
+                start = time.time()
+                if has_good_reduction_outside_S_over_K(E,S):
+                    curves.append(E)
+
+    return curves
+
+
+def egros_from_1728_over_K(K,S):
+    r"""
+
+    INPUT:
+        - ``K`` : a number field
+        - ``S`` : a list of primes of ``K``
+
+    OUTPUT:
+
+        A list with all elliptic curves over ``K`` with good reduction outside ``S`` and `j`-invariant equal to 1728.
+
+    REFERENCE:
+        J. E. Cremona and M. P. Lingham. Finding All Elliptic Curves with Good Reduction Outside a Given Set of Primes.
+        Experimental Mathematics, 16(3):303-312, 2007.
+
+    EXAMPLE::
+
+        sage:
+
+    """
+    if K == QQ:
+        from sage.schemes.elliptic_curves.ell_egros import egros_from_j_1728
+        return egros_from_j_1728(S)
+
+    Sprime = copy(S)
+
+    #we add suitable primes above 2
+    for p in K.primes_above(2):
+        if (K(2)).valuation(p)%2 == 1 and p not in Sprime:
+            Sprime.append(p)
+
+    SprimenotS = [p for p in Sprime if p not in S]
+
+    selmergens,orders = K.selmer_group(Sprime,4,orders=True)
+
+    curves = []
+
+    if len(SprimenotS) == 0:
+        for v in cartesian_product_iterator([xrange(b) for b in orders]):
+            w = prod([g**i for g,i in zip(selmergens,v)])
+            E = EllipticCurve([w,0])
+            if has_good_reduction_outside_S_over_K(E,S):
+                curves.append(E)
+        return curves
+
+
+    for v in cartesian_product_iterator([xrange(b) for b in orders]):
+        w = prod([g**i for g,i in zip(selmergens,v)])
+        if len([1 for p in SprimenotS if w.valuation(p)%4 == 2]) == len(SprimenotS):
+            E = EllipticCurve([w,0])
+            if has_good_reduction_outside_S_over_K(E,S):
+                curves.append(E)
+    return curves
+
+
+def egros_from_j_over_K(j,K,S):
+    r"""
+
+    INPUT:
+        - ``K`` : a number field
+        - ``S`` : a list of primes of ``K``
+
+    OUTPUT:
+
+        A list with all elliptic curves over ``K`` with good reduction outside ``S`` and `j`-invariant equal to
+        ``j``.
+
+    REFERENCE:
+        J. E. Cremona and M. P. Lingham. Finding All Elliptic Curves with Good Reduction Outside a Given Set of Primes.
+        Experimental Mathematics, 16(3):303-312, 2007.
+
+    EXAMPLE::
+
+        sage:
+
+    """
+    import time
+    if K == QQ:
+        from sage.schemes.elliptic_curves.ell_egros import egros_from_j
+        return egros_from_j(j,S)
+
+    if j == K(0):
+        return egros_from_0_over_K(K,S)
+    if j == K(1728):
+        return egros_from_1728_over_K(K,S)
+
+    w = j**2 * (j - 1728)**3
+    #the case w not in K(S,6)
+
+    if not in_KSn(w,S,6):
+        return []
+
+    #the case w in K(S,4)_2
+
+    J = brace_map(w,S,2)[1]
+    power_n, W0 = in_nCKSmn(J,S,2,2)
+    principal, u = is_S_principal(J/W0**2,S)
+    #we choose t as in the reference
+
+    curves = []
+    u /= 3
+    if power_n:
+        if principal:
+            if K.class_number() == 1:
+                E = EllipticCurve([-3*u**2*j*(j-1728),-2*u**3*j*(j-1728)**2]).global_minimal_model()
+            else:
+                E = EllipticCurve([-3*u**2*j*(j-1728),-2*u**3*j*(j-1728)**2]).global_minimal_model(semi_global=True)
+            Sel2 = K.selmer_group(S,2)
+            for v in cartesian_product_iterator([xrange(2)]*len(Sel2)):
+                t = prod([g**e for g,e in zip(Sel2,v)])
+                start = time.time()
+                Et = E.quadratic_twist(t).integral_model()
+                # return Et
+                if has_good_reduction_outside_S_over_K(Et,S):
+                    curves.append(Et)
+                end = time.time()
+                # print 't1',end-start
+
+    return curves
+
+
+def egros_from_jlist_over_K(J,K,S):
+    r"""
+
+    INPUT:
+        - ``J`` : a list of `j`-invariants
+        - ``K`` : a number field `K`
+        - ``S``: a finite set of primes of ``K``
+
+    OUTPUT:
+        A list of all elliptic curves over ``K`` with good reduction outside ``S`` with `j`-invariant in ``J``
+
+    EXAMPLE::
+        sage:
+    """
+
+    return sum([egros_from_j_over_K(j,K,S) for j in J],[])
+
+
+def j_invariant_of_2_isogenous(j):
+    r"""
+
+    INPUT:
+        - ``j`` : the `j`-invariant of an elliptic curve with exactly one rational point of order 2.
+
+    OUTPUT:
+        The `j`-invariant of its 2-isogenous curve.
+    """
+    if j == 0:
+        return []
+
+    if j == 1728:
+        return [EllipticCurve([-4,0]).j_invariant()]
+
+    E = EllipticCurve([1,0,0,-36/(j-1728),-1/(j-1728)]).short_weierstrass_model()
+    roots = E.two_division_polynomial().roots()
+    if len(roots) == 1:
+        r = roots[0][0]
+        a1,a2,a3,a4,a6 = E.change_weierstrass_model(1,r,0,0).a_invariants()
+        return [EllipticCurve([0,-2*a2,0,a2**2-4*a4,0]).j_invariant()]
+    elif len(roots) == 3:
+        J = []
+        for r in roots:
+            a1,a2,a3,a4,a6 = E.change_weierstrass_model(1,r[0],0,0).a_invariants()
+            j = EllipticCurve([0,-2*a2,0,a2**2-4*a4,0]).j_invariant()
+            if j not in J:
+                J.append(j)
+        return J
 
 
 ########## S-unit reduction step with different groups  for the equation x+y = 1 ##########
@@ -3430,6 +3828,7 @@ def reduce_the_bound(K,G1,G2,precision):
         G2abs = [KembKabs(g) for g in G2]
         return reduce_the_bound_absolute_field(Kabs,G1abs,G2abs,precision)
 
+
 #### Norm subgroups for all 2-division fields####
 
 def extend_basis_over_ZZ(T):
@@ -3457,6 +3856,7 @@ def extend_basis_over_ZZ(T):
             T
     else:
         return T
+
 
 def Norm_subgroup_division_field(SK,SL):
     r"""
@@ -3822,43 +4222,14 @@ def mix_basis(G1,G2):
         
     return G12#,t
 
-#I may not need it
-# def upper_bound_for_C(bounds,place,G,delta_prime):
-#     r"""
-#
-#     INPUT:
-#         - ``bounds`` : a list of upper bounds for the exponents of the generators
-#         - ``place`` (ring morphism): an infinite place `\mathfrak p` of a number field `K`
-#         - ``G`` : a list `[g_1,g_2,\cdots,g_n]` of elements of `K^*` which are linear independent
-#         - ``delta_prime`` : a real positive number
-#
-#     OUTPUT:
-#         An upper bound for the constant `C` which appeas in the function ``trivial_Tp_infinite_place``.
-#     """
-#
-#     real_place = is_real_place(place)
-#
-#     if real_place:
-#         m = min([log(place(g).abs()) for g in G])
-#     else:
-#         m = min([2 * log(place(g).abs()) for g in G])
-#
-#     B = sum(bounds)/2
-#     A = sum([b**2 for b in bounds[:len(G)-1]])
-#     t = polygen(RR)
-#     f = (m**2-delta_prime**2) * t**2 + 2 * (m - B * delta_prime) * t + (2 - A - B**2)
-#
-#     print 'f',f(8000000000000)
-#     return max(f.roots())[0]
 
-
-def trivial_Tp_infinite_place(bounds,place,G,delta):
+def trivial_Tp_infinite_place(Bounds,place,Gens,delta):
     r"""
     
     INPUT:
-        - ``bounds`` : a list of upper bounds for the exponents of the generators
+        - ``Bounds`` : a list of upper bounds for the exponents of the generators
         - ``place`` (ring morphism): an infinite place `\mathfrak p` of a number field `K`
-        - ``G`` : a list `[g_1,g_2,\cdots,g_n]` of elements of `K^*` which are linear independent
+        - ``Gens`` : a list `[g_1,g_2,\cdots,g_n]` of elements of `K^*` which are linear independent
         - ``delta`` : a real positive number
     
     OUTPUT:
@@ -3888,7 +4259,40 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
         delta_prime = -log(1-delta)
     else:
         delta_prime = -log(1-sqrt(delta))/2
-        
+
+    #when the absolute value of at least two generators is the same
+
+    find_same_abs = False
+    for i in range(len(Gens)):
+        for j in range(i,len(Gens)):
+            if place(Gens[i]).abs() == place(Gens[j]).abs():
+                find_same_abs = True
+
+    if find_same_abs:
+        G = []
+        bounds = []
+        for i,g in enumerate(Gens):
+            exists = False
+            for j,g2 in enumerate(G):
+                if place(g2).abs() == place(g).abs():
+                    bounds[j] += Bounds[i]
+                    exists = True
+            if not exists:
+                G.append(g)
+                bounds.append(Bounds[i])
+    # print '[G]',[place(g).abs() for g in G]
+    # print 'bounds',bounds
+    # print '[Gens]',[place(g).abs() for g in Gens]
+    # print 'Bounds',Bounds
+    # return 1
+    # G = Gens
+    # exp = round(place.codomain().precision()/2)
+    # Genu = [Gens.index(g) for g in Gens if (place(g).abs() - 1).abs() >= 2**(-exp)]
+    # G = [Gens[i] for i in Genu]
+    # bounds = [Bounds[i] for i in Genu]
+    # return G
+    # print '[]',[place(g).abs() for g in Gens]
+    # bounds = Bounds
     #we choose C such that none of the elements of the lowest row of the matrix A we define later to be 0
     if real_place:
         C = max([round(1/log(place(g).abs()))+1 for g in G]+[2])
@@ -3896,7 +4300,7 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
         C = max([round(1/log(place(g).abs()**2))+1 for g in G]+[2])
 
     t = len(G)
-    C_upper = C**100 # arbitrary choice
+    C_upper = C**1000 # arbitrary choice
 
     A = copy(identity_matrix(ZZ,t))
     
@@ -3927,15 +4331,22 @@ def trivial_Tp_infinite_place(bounds,place,G,delta):
                 bounds[t-1] = temp
 
         l = minimal_vector(A.transpose(),y)
+        # print 'A',A.row(t-1)
+        # print 'l',l
+        # print 'sum',sum([b**2 for b in bounds[:t-1]]) + (sum([b for b in bounds])/2 + C * delta_prime)**2
         if l <= sum([b**2 for b in bounds[:t-1]]) + (sum([b for b in bounds])/2 + C * delta_prime)**2:
             C = 10 * C
-            # print 'C',C
+            # print 'increase C',l
             if C > C_upper:
+                # print 'trivial-1'
                 return False
         else:
-            # print 'C',C
-            return True    
-    
+            # print 'trivial-2'
+            # G1 = [Gens[i] for i in range(len(Gens)) if i not in Genu]
+            # bounds = [Bounds[i] for i in range(len(Gens)) if i not in Genu]
+            # print G1,bounds
+            return True
+    # print 'trivial-3'
     return False
 
 
@@ -4881,19 +5292,19 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
     #we make an arbitrary choice of an initial delta
     delta_old = 1/R
     delta_new = sqrt(delta_old)
-    #max([choice_of_delta(s,Gl,[Bold/20 if i in units_index else b for i,b in enumerate(bound_Gl)]) for s in infinite_primes])
+    # for p in infinite_primes:
+    #     print '[]',[log(p(g).abs()) for g in Gl]
 
     #we reduce the bounds for the units
     reduce_bounds = bound_Gl
     while True:
-        # print 'delta_old',delta_old
-        # print '1',[1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm,place,Gm[1:],delta_old)]
+        # return bound_Gm[1:],infinite_primes[0],Gm[1:],delta_new
         if len([1 for place in infinite_primes if trivial_Tp_infinite_place(bound_Gm[1:],place,Gm[1:],delta_new)]) == len(infinite_primes):
             Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             delta_old = delta_new
             delta_new = sqrt(delta_old)
             reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(bound_Gl)]
-            print 'reduce_bounds',reduce_bounds
+            # print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
 
@@ -5017,6 +5428,7 @@ def sieve_in_C2(Gl,Gm,B):
     start = time.time()
     R = max([exp(sum([(log(s(g).abs())).abs() * b if is_real_place(s) else (2*log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl)])) for s in infinite_primes])
     # print 'R',R
+    # return reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
     bound_Gl , R = reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
 
     print 'bound_Gl-3',bound_Gl
@@ -5059,6 +5471,14 @@ def sieve_in_C2(Gl,Gm,B):
                 Sunits.append(l)
         # end = time.time()
         # print 'time for each loop %s'%(end-start)
+
+    #we throw away 0 and 1
+
+    while 0 in Sunits:
+        Sunits.remove(0)
+    while 1 in Sunits:
+        Sunits.remove(1)
+
     return Sunits
 
 
@@ -5312,6 +5732,11 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
         Gl,Gm = Norm_subgroup_division_field(SK,SM)
         C2_extensions.append([M,Gl,Gm])
 
+    # for L in C2_extensions:
+    #     d = L[0].defining_polynomial().discriminant()
+    #     if K.hilbert_symbol(d,K(1)) == 1:
+    #         print d.factor()
+    # return 1
     #using Hilbert's symbol we choose with which fields we are going to work with
 
     N = len(C2_extensions)
@@ -5319,8 +5744,11 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
     B = [0]*N
     for i in range(N):
         d1 = C2_extensions[i][0].defining_polynomial().discriminant()
+        # print 'd1',d1.factor()
         for j in range(i,N):
+            # print '(i,j) = (%s,%s)'%(i,j)
             d2 = C2_extensions[j][0].defining_polynomial().discriminant()
+            # print '(d1,d2) = (%s,%s)'%(d1,d2)
             A[i,j] = (K.hilbert_symbol(d1,d2)+1)/2
             if A[i,j] == 1:
                 if i != j:
@@ -5331,7 +5759,7 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
     end = time.time()
     print 'we have %s fields to work with,'%(len(quadratic_fields))
     print 'time for fields = %s'%(end-start)
-
+    # return A
     J = []
     #The case when they may exist two isogenous curves with the same 2-division field
 
@@ -5416,31 +5844,45 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K,S):
                         B[maxedges] -= 1
                         A[maxedges,maxedges] = 0
 
-    from sage.schemes.elliptic_curves.ell_egros import egros_from_j
-
-    curves = []
-    J = [QQ(j) for j in J]+[QQ(0),QQ(1728)]
-    S = [ZZ(p) for p in S]
+    # from sage.schemes.elliptic_curves.ell_egros import egros_from_j
+    #
+    # curves = []
+    # J = [QQ(j) for j in J]+[QQ(0),QQ(1728)]
+    # S = [ZZ(p) for p in S]
+    # J = [j for j in J if len(egros_from_j(j,S)) > 0]
+    # print 'J-1',J
+    # for j in J:
+    #     for E in egros_from_j(j,S):
+    #         if E not in curves:
+    #             curves.append(E)
+    #         for E_isogeny in E.isogenies_prime_degree(2):
+    #             if E_isogeny.codomain() not in curves:
+    #                 curves.append(E_isogeny.codomain())
+    #             if E_isogeny.codomain().j_invariant() not in J:
+    #                 J.append(E_isogeny.codomain().j_invariant())
+    #     print 'J',J
+    # for E in curves:
+    #     if E.j_invariant() not in J:
+    #         J.append(E.j_invariant())
+    # if K.absolute_degree() == 1:
+    #     J = [QQ(j) for j in J]
+    #     final_J = []
+    #     for j in J:
+    #         if len(egros_from_j(j,S)) > 0:
+    #             final_J.append(j)
+    #     return final_J
+    Jfinal = []
+    J = [K(j) for j in J]
+    # return J
+    if 1728 not in J:
+        J.append(K(1728))
+    Jfinal = J
     for j in J:
-        for E in egros_from_j(j,S):
-            if E not in curves:
-                curves.append(E)
-            for E_isogeny in E.isogenies_prime_degree(2):
-                if E_isogeny.codomain() not in curves:
-                    curves.append(E_isogeny.codomain())
-                if E_isogeny.codomain().j_invariant() not in J:
-                    J.append(E_isogeny.codomain().j_invariant())
-    for E in curves:
-        if E.j_invariant() not in J:
-            J.append(E.j_invariant())
-    if K.absolute_degree() == 1:
-        J = [QQ(j) for j in J]
-        final_J = []
-        for j in J:
-            if len(egros_from_j(j,S)) > 0:
-                final_J.append(j)
-        return final_J
-    return J
+        Jiso = j_invariant_of_2_isogenous(j)
+        for jprime in Jiso:
+            if jprime in K and jprime not in Jfinal:
+                Jfinal.append(jprime)
+    return Jfinal
 
 
 ##Cubic case
@@ -5526,9 +5968,14 @@ def reduce_bound_for_unit_generators_C3(Gl,bounds,R):
     #we reduce the bounds for the units
     reduce_bounds = bounds
     while True:
-        # print 'delta_new',delta_new
+        # print 'len(infinite_primes)',len(infinite_primes)
+        # for place in infinite_primes:
+        #     if not trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new):
+        #         return reduce_bounds[1:],place,Gl[1:],delta_new
+        # print '[]',[1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)]
         if len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)]) == len(infinite_primes):
             Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
+            # print 'Bold',Bold
             delta_old = delta_new
             delta_new = sqrt(delta_new)
             reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(reduce_bounds)]
@@ -5603,23 +6050,86 @@ def reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bounds):
     Gl_final = [g**len(c) if b == 0 else 1 for g,c,b in zip(Gl[1:],congruence_bounds[1:],Bpr)]
     Gm_final = [g**len(c) if b == 0 else 1 for g,c,b in zip(Gm[1:],congruence_bounds[1:],Bpr)]
     # print 'number of final checks %s'%(count * prod([2*b+1 if br == 0 else 1 for b,br in zip(B,congruence_bounds[1:])]))
-    # import time
+    import time
     for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bpr)]):
-        # start = time.time()
+        start = time.time()
         # print 'v',v
         l0 = prod([g **e for g,e in zip(Gl_final,v)])
         m0 = prod([g **e for g,e in zip(Gm_final,v)])
         for l1,m1 in zip(elements_l,elements_m):
-            # start1 = time.time()
             if l0*l1 + m0*m1 == 1:
-            # if is_S_unit_element(SmunitL,1 - l*u):
                 Sunits.append(l0*l1)
-            # end1 = time.time()
-            # print 'time for each element %s'%(end1 - start1)
-        # end = time.time()
+        end = time.time()
         # print 'time for each loop %s'%(end - start)
         # return 1
     return Sunits
+
+#I I do not know yet
+def prime_congrunece_to_1_mod_n(S,n):
+    r"""
+
+    INPUT:
+        - ``S`` : a finite set of natural primes
+        - ``n`` : a natural number
+
+    OUTPUT:
+        A the smallest natural prime `p` outside ``S`` such that `p\equiv 1\mod n`.
+    """
+
+    P = Primes()
+    find = False
+    p = Integer(101)
+    while not find:
+        if p not in S:
+            if (p-1)%n == 0:
+                return p
+            else:
+                p = P.next(p)
+        else:
+            p = P.next(p)
+
+
+def V_satisfy_congruence_for_primes_outside_S(V,new_m0,new_Gm,P,GCD):
+    r"""
+
+    INPUT:
+        - ``V`` : a list of vectors for the exponent modulo the ``GCD``
+        - ``new_m0`` : as in the function ``sieve_for_p_in_support_of_Gl_C3``
+        - ``new_Gm`` : as in the function ``sieve_for_p_in_support_of_Gl_C3``
+        - ``P`` : a suitable prime ideal outside `S`
+        - ``GCD`` : the gcd of ``congruence_bounds`` from function `sieve_for_p_in_support_of_Gl_C3``
+    """
+
+    if V == []:
+        return []
+
+    GF = P.residue_field()
+    gen = GF.multiplicative_generator()
+    q = P.ideal_below().residue_field().order()
+    t = polygen(GF)
+    f = t**(q+1)-t**q+1
+    roots = [a[0] for a in f.roots()]
+    logroots = [r.log(gen) for r in roots]
+    print 'logroots',logroots
+    logGm = vector([(GF(g)).log(gen) for g in new_Gm])
+    print 'logGm',logGm
+    logm0 = (GF(new_m0)).log(gen)
+    print 'logm0',logm0
+    new_V = []
+    i = 1
+    import time
+    for v in V:
+        start = time.time()
+        find = False
+        i = 0
+        while i < len(logroots) and not find:
+            if (logGm*v+logm0-logroots[i])%GCD == 0:
+                find = True
+                new_V.append(v)
+            i += 1
+        end = time.time()
+        print 'time for each k %s'%(end-start)
+    return new_V
 
 
 def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
@@ -5714,38 +6224,50 @@ def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
             congruence_bounds = [xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in reduce_bounds]
             Bprime = [0 if 2*b >= maxorder else 1 for b in reduce_bounds]
             B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(reduce_bounds,congruence_bounds)]
-        # print 'congruence_bounds',congruence_bounds
-        # print 'B',B
+        print 'congruence_bounds',congruence_bounds
+        print 'Bprime',Bprime
+        print 'B',B
         count = 0
         m0_elements = []
         valuations = []
         start_congruence = time.time()
+        V = []
         for v in cartesian_product_iterator(congruence_bounds):
             v = vector(v)
             if vector([((v*col)+m0)%m for m,m0,col in zip(prime_orders,prime_m0log,prime_M.columns())]).is_zero():
                 # print 'v',v
                 m0_elements.append(new_m0 * prod([g**e for g,e in zip(new_Gm,v)]))
+                V.append(v)
                 count += 1
         end_congruence = time.time()
         # print 'time for congruence %s'%(end_congruence - start_congruence)
-        # print 'count',count
-        # print 'percent=%s'%(RR(QQ(count)/QQ(prod([len(c) for c in congruence_bounds]))))
-        # print 'number of case I have to check=%s'%(count*prod([2*b if i == 0 else 1 for b,i in zip(B,Bprime)]))
+        print 'count',count
+        print 'percent=%s'%(RR(QQ(count)/QQ(prod([len(c) for c in congruence_bounds]))))
+        print 'number of case I have to check=%s'%(count*prod([2*b+1 if i == 0 else 1 for b,i in zip(B,Bprime)]))
 
+        # return I
         #we determine the solutions
 
         l0_elements = [sigma(sigma(1/m0)) for m0 in m0_elements]
+        new_Gl = [sigma(sigma(1/g)) for g in new_Gm]
+        return new_Gl,new_Gm
         if count != 0:
-            new_Gm_powers_m = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
-            new_Gm_powers_l = [sigma(sigma(1/g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
+            new_Gm_powers = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
+            new_Gl_powers = [sigma(sigma(1/g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
             for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bprime)]):
-                m1 = prod([g**e for g,e in zip(new_Gm_powers_m,v)])
-                l1 = prod([g**e for g,e in zip(new_Gm_powers_l,v)])
+                # start1 = time.time()
+                m1 = prod([g**e for g,e in zip(new_Gm_powers,v)])
+                l1 = prod([g**e for g,e in zip(new_Gl_powers,v)])
+                # end1 = time.time()
+                # print 'time for products = %s'%(end1 - start1)
                 for m0,l0 in zip(m0_elements,l0_elements):
-                    if m0 * m1 + l0 * l1 == 1:
+                    start1 = time.time()
+                    if m0 == 1:#m0 * m1 + l0 * l1 == 1:
                         m = m0 * m1
                         if m0 * m1 not in Sunits:
                             Sunits.append(m)
+                    end1 = time.time()
+                    # print 'time for each case %s'%(end1-start1)
         # end = time.time()
         # print 'time for one loop %s'%(end-start)
     return Sunits,exp
@@ -5847,6 +6369,7 @@ def sieve_in_C3(Gl,Gm,B):
 
     #we reduce the bound for the unit generators
     R = max([exp(sum([(log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl) if s(g).abs() != 1])) for s in infinite_primes])
+    # return reduce_bound_for_unit_generators_C3(Gl,bound_Gl,R)
     bound_Gl , R = reduce_bound_for_unit_generators_C3(Gl,bound_Gl,R)
     print 'bound_Gl-2',bound_Gl
     # print 'Slreduce',Slreduce
@@ -5873,10 +6396,10 @@ def sieve_in_C3(Gl,Gm,B):
 
     # print 'Slreduce',Slreduce
     for k,p in enumerate(Slreduce):
-        # return p,bound_Gl,bound_Slreduce[k]
-        solutions, exp1 = sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Slreduce[k])
+        # return p,Sl,bound_Gl,bound_Slreduce[k]
+        solutions, exp1 = [],3#sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Slreduce[k])
         Sunits += solutions
-        solutions, exp2 = sieve_for_p_in_support_of_Gl_C3(p,[sigma(g) for g in Gm],Sl,bound_Gl,bound_Slreduce[k])
+        solutions, exp2 = [],3#sieve_for_p_in_support_of_Gl_C3(p,[sigma(g) for g in Gm],Sl,bound_Gl,bound_Slreduce[k])
         Sunits += solutions
         bound_Slreduce[k] = max(exp1,exp2)
     for i,p1 in enumerate(Slreduce):
@@ -5924,6 +6447,13 @@ def sieve_in_C3(Gl,Gm,B):
     for l in reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bound_Gl):
         if l not in Sunits:
             Sunits.append(l)
+
+    #we throw away 0 and 1
+
+    while 0 in Sunits:
+        Sunits.remove(0)
+    while 1 in Sunits:
+        Sunits.remove(1)
 
     return Sunits
 
@@ -5997,7 +6527,10 @@ def elliptic_curves_with_good_reduction_with_cubic_two_division_field(K,S):
         end = time.time()
         print 'time for sieve=%s'%(end-start)
 
-    return [QQ(j) for j in J if len(egros_from_j(QQ(j),S)) > 0]
+    if K.absolute_degree == 1:
+        return [QQ(j) for j in J if len(egros_from_j(QQ(j),S)) > 0]
+    else:
+        return [K(j) for j in J]
 
 
 
@@ -6070,6 +6603,18 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
             # print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
+
+#I do not know yet
+def tuples_from_Frobenius(new_m0,new_Gm,P,m):
+    r"""
+
+    INPUT:
+        - ``new_m0`` : as in the function ``sieve_for_p_in_support_of_Gl_C3``
+        - ``new_Gm`` : as in the function ``sieve_for_p_in_support_of_Gl_C3``
+        - ``P`` : a suitable prime ideal outside S
+        - ``m`` : the
+
+    """
 
 
 def sieve_in_S3(Gl,Gm,B):
@@ -6181,12 +6726,12 @@ def sieve_in_S3(Gl,Gm,B):
     Sunits = []
 
     #we determine the solutions which are divisible by high powers of primes in SlnotSm_gp3
-    print 'len(SlnotSm_gp3)',len(SlnotSm_gp3)
+    # print 'len(SlnotSm_gp3)',len(SlnotSm_gp3)
     # return SlnotSm_gp3,Sl,bound_Gl,bound_Sl,R,infinite_primes
     for k,p in enumerate(SlnotSm_gp3):
-        # return p,Sl,bound_Gl,bound_Sl
+        return p,Sl,bound_Gl,bound_Sl
         solutions,i = sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Sl[Sl.index(p)])
-        # solutions, i = modified_sieve_for_p_in_support_of_Gl_S3(p,Gm,Gl,Sl,bound_Gl,bound_Sl[Sl.index(p)])
+
         Sunits += solutions
         bound_Sl[Sl.index(p)] = i
         if sigma(p) in Sl:
@@ -6200,7 +6745,6 @@ def sieve_in_S3(Gl,Gm,B):
     #we reduce the bound for the unit generators again
     bound_Gl , R = reduce_bound_for_unit_generators_S3(Gl,Gm,bound_Gl,R)
     print 'bound_Gl-5',bound_Gl
-
 
     #we reduce the bound using simple inequalities again
 
@@ -6231,10 +6775,17 @@ def sieve_in_S3(Gl,Gm,B):
         p = Primes().next(ZZ(p))
 
     #we do the final sieve using the unramified and split prime we found above and the Hilbert symbol
-    # return I,bound_Gl
+
     for l in reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bound_Gl):
         if l not in Sunits:
             Sunits.append(l)
+
+    #we throw away 0 and 1
+
+    while L(0) in Sunits:
+        Sunits.remove(L(0))
+    while L(1) in Sunits:
+        Sunits.remove(L(1))
 
     return Sunits
 
@@ -6320,5 +6871,8 @@ def elliptic_curves_with_good_reduction_with_S3_two_division_field(K,S):
         print 'time for sieve=%s'%(end-start)
     from sage.schemes.elliptic_curves.ell_egros import (egros_from_jlist, egros_from_j, egros_get_j)
 
-    return [QQ(j) for j in J if len(egros_from_j(QQ(j),S))]
+    if K.absolute_degree == 1:
+        return [QQ(j) for j in J if len(egros_from_j(QQ(j),S)) > 0]
+    else:
+        return [K(j) for j in J]
 
