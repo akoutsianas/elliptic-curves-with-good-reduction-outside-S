@@ -350,7 +350,7 @@ def reducing_the_bound(X0,A,p,m):
     else:
         increase_m = True
 
-    return [X0,increase_m]
+    return RR(X0).floor(),increase_m
 
 
 def find_the_new_bound_for_all_primes(X0,A,precision):
@@ -364,7 +364,7 @@ def find_the_new_bound_for_all_primes(X0,A,precision):
     OUTPUT:
         A list with upper bounds for the exponents of each prime in ``A``.
     
-    EXAMPLE::
+    EXAMPLES::
         
         sage: find_the_new_bound_for_all_primes(1000,[2,3,5],100)
             [24, 15, 10]
@@ -412,7 +412,7 @@ def applying_De_Weger_method(A,precision):
         
         sage: 
     """    
-    X0 = initial_bound(A)
+    X0 = RR(initial_bound(A)).floor()
     Xnew = max(find_the_new_bound_for_all_primes(X0,A,precision))
     while Xnew < X0:
         X0 = Xnew
@@ -463,7 +463,7 @@ def simple_loop(S,bounds):
     return solutions
 
 
-def solve_S_unit_equation_over_Q(S,precision):
+def solve_S_unit_equation_over_Q(S,precision = 200):
     r"""
     
     INPUT:

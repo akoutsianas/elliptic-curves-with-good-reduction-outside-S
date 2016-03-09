@@ -1120,11 +1120,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         G2B1finite = max(G2B1finite,B1)
     B1finite = max(G1B1finite,G2B1finite)
     B1 = RR(max(B1real,B1complex,B1finite)).floor()
-    # print 'B1',RR(B1).floor()
-    end = time.time()
-    # print 'time for initial bound =%s'%(end-start)
 
-    # print 'step 1'
     ##  STEP 2 - Reduction step  ##
     
     # Real case
@@ -1198,7 +1194,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             finish = False
             while not finish:
                 Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G2free,g0,G1c3/2)
-                #print 'Bnew,Bold',round(Bnew_g0),round(Bold_g0),increase_precision
+
                 #if we have to increase the precision we evaluate c1,c2,c3 constants again
                 if not increase_precision:
                     if Bnew_g0 < Bold_g0:
@@ -1207,8 +1203,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                         finish = True
                 else:
                     #we evaluate with higher precision G1c1 , G1c2 and G1c3
-                
-                    # temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
+
                     G1c1 ,G1c2, G1c3 = c_constants(G1free,2*place.codomain().precision())
                     place = higher_precision(place,2*place.codomain().precision())
             B_place = max(B_place,Bold_g0)
@@ -1224,7 +1219,7 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             finish = False
             while not finish:
                 Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G1free,g0,G2c3/2)
-                #print 'Bnew,Bold',round(Bnew_g0),round(Bold_g0),increase_precision
+
                 #if we have to increase the precision we evaluate c1,c2,c3 constants again
                 if not increase_precision:
                     if Bnew_g0 < Bold_g0:
@@ -1233,68 +1228,42 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                         finish = True
                 else:
                     #we evaluate with higher precision G2c1 , G2c2 and G2c3
-                
-                    # temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
+
                     G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
                     place = higher_precision(place,2*place.codomain().precision())
             B_place = max(B_place,Bold_g0)
         G2B2complex = max(G2B2complex,B_place)
     B2complex = max(G1B2complex,G2B2complex)
-    end = time.time()
-    # print 'time for complex part %s'%(end-start)
 
     #  Finite case
-    # print 'finite'
-    start = time.time()
 
     # print 'G1'
     G1B2finite = 0
-    # return G1finite_initialization
-    # print 'len(G1finite_initialization)',len(G1finite_initialization)
     for P in G1finite_initialization:
-        # print 'len(P[1])',len(P[1])
-        # print 'P[2]',P[2]
-        # print 'prime',P[0]
-        # return P[0],B1,P[2],P[1],G1c3
-        # print 'B1',B1
-        SunitK = K.S_unit_group(S = support_of_G(P[2],10)[0])
         B_place = 0
-        prec = precision
-        # start = time.time()
-        M_logp = [sum([c * log_p(g,P[0],prec) for c,g in zip(SunitK(m).list(),SunitK.gens_values()) if c != 0]) for m in P[2]]
-        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-        # low_u = 1
-        # end = time.time()
-        # print 'time for initial logp',end-start
-        for m0 in P[1]:
-            # print 'm0'
-            Bold_m0 = B1
-            finish = False
-            while not finish:
-                # start_reduce = time.time()
-                # print 'low_u,prec',low_u,prec
-                Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G1c3,prec)
-                # end_reduce = time.time()
-                # print 'time for reduce %s',end_reduce-start_reduce
+        if len(P[2]) !=0:
+            prec = precision
+            M_logp = [log_p(m,P[0],prec) for m in P[2]]
+            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+            for m0 in P[1]:
+                Bold_m0 = B1
+                finish = False
+                while not finish:
+                    Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G1c3,prec)
 
-                #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                if not increase_precision:
-                    if Bnew_m0 < Bold_m0:
-                        Bold_m0 = Bnew_m0
+                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
+                    if not increase_precision:
+                        if Bnew_m0 < Bold_m0:
+                            Bold_m0 = Bnew_m0
+                        else:
+                            finish = True
                     else:
-                        finish = True
-                else:
-                    #we evaluate with higher precision G1c1, G1c2 and G1c3
-                    # print 'increase precision',2*prec
-                    # low_u = prec
-                    prec *= 2
-                    G1c1 ,G1c2, G1c3 = c_constants(G1free,prec)
-                    # start = time.time()
-                    M_logp = [sum([c * log_p(g,P[0],prec) for c,g in zip(SunitK(m).list(),SunitK.gens_values()) if c != 0]) for m in P[2]]
-                    M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-                    # end = time.time()
-                    # print 'time for increase logp',end-start
-            B_place = max(B_place,Bold_m0)
+                        #we evaluate with higher precision G1c1, G1c2 and G1c3
+                        prec *= 2
+                        G1c1 ,G1c2, G1c3 = c_constants(G1free,prec)
+                        M_logp = [log_p(m,P[0],prec) for m in P[2]]
+                        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+                B_place = max(B_place,Bold_m0)
         G1B2finite = max(G1B2finite,B_place)
 
     # print 'G2'
@@ -1302,37 +1271,31 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
     G2B2finite = 0
     for P in G2finite_initialization:
         B_place = 0
-        prec = precision
-        M_logp = [log_p(m,P[0],prec) for m in P[2]]
-        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-        # low_u = 1
-        for m0 in P[1]:
-            Bold_m0 = B1
-            finish = False
-            while not finish:
-                # start_reduce = time.time()
-                Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
-                # end_reduce = time.time()
-                # print 'time for reduce %s',end_reduce-start_reduce
+        if len(P[2]) != 0:
+            prec = precision
+            M_logp = [log_p(m,P[0],prec) for m in P[2]]
+            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+            for m0 in P[1]:
+                Bold_m0 = B1
+                finish = False
+                while not finish:
+                    Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
 
-                #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                if not increase_precision:
-                    if Bnew_m0 < Bold_m0:
-                        Bold_m0 = Bnew_m0
+                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
+                    if not increase_precision:
+                        if Bnew_m0 < Bold_m0:
+                            Bold_m0 = Bnew_m0
+                        else:
+                            finish = True
                     else:
-                        finish = True
-                else:
-                    #we evaluate with higher precision G2c1 , G2c2 and G2c3
-                    # low_u = prec
-                    prec *= 2
-                    G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
-                    M_logp = [log_p(m,P[0],prec) for m in P[2]]
-                    M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-            B_place = max(B_place,Bold_m0)
+                        #we evaluate with higher precision G2c1 , G2c2 and G2c3
+                        prec *= 2
+                        G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
+                        M_logp = [log_p(m,P[0],prec) for m in P[2]]
+                        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+                B_place = max(B_place,Bold_m0)
         G2B2finite = max(G2B2finite,B_place)
     B2finite = max(G1B2finite,G2B2finite)
-    end = time.time()
-    # print 'time for finite part %s'%(end-start)
 
     return RR(max(B2real,B2complex,B2finite)).floor()
 
@@ -1347,7 +1310,8 @@ def reduce_the_bound(K,G1,G2,precision):
        - ``precision`` : the precision for the calculations
 
     OUTPUT:
-        An upper bound for the exponents of the solutions `x,y` of the `S-unit` equation `x+y=1` when `x\in G_1` and `y\in G_2`
+        An upper bound for the exponents of the solutions `x,y` of the `S-unit` equation `x+y=1`
+        when `x\in G_1` and `y\in G_2`
 
     EXAMPLE::
 
@@ -1367,6 +1331,40 @@ def reduce_the_bound(K,G1,G2,precision):
         G1abs = [KembKabs(g) for g in G1]
         G2abs = [KembKabs(g) for g in G2]
         return reduce_the_bound_absolute_field(Kabs,G1abs,G2abs,precision)
+
+
+def simple_loop_for_S_unit_equation(G1,G2,B):
+    r"""
+
+    INPUT:
+        - ``G1`` : a list of generators of a `S_1`-unit group of a number field `K`
+        - ``G2`` : a list of generators of a `S_2`-unit group of a number field `K`
+        - ``B`` : An upper bound for the exponents of the solutions `x,y` of the `S-unit` equation `x+y=1`
+            when `x` is a `S_1`-unit and `y` is a `S_2`-unit
+
+    OUTPUT:
+
+        A list of all `x` of the solutions `(x,y)` of the `S-unit` equation `x+y=1`
+        when `x` is a `S_1`-unit and `y` is a `S_2`-unit
+
+    EXAMPLE::
+
+        sage:
+    """
+    if len(G1) == 0:
+        return []
+    K = G1[0].parent()
+    S2 = support_of_G(G2,10)[0]
+    SunitG2 = K.S_unit_group(S = S2)
+    torsion_order = G1[0].multiplicative_order()
+    print('torsion_order = ',torsion_order  )
+    solutions = []
+    for v in cartesian_product_iterator([xrange(torsion_order)]+(len(G1)-1)*[xrange(-B,B+1)]):
+        x = prod([g**e for e,g in zip(v,G1)])
+        if is_S_unit_element(SunitG2,1-x):
+            print("v = ",v)
+            solutions.append(x)
+    return solutions
 
 
 

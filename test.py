@@ -1,4 +1,5 @@
 from sage.schemes.elliptic_curves.ell_egros import (egros_from_jlist, egros_from_j, egros_get_j)
+
 def test(j):
     # L = QQ
     y = polygen(QQ)
@@ -54,6 +55,21 @@ def test1(P,B1,G1):
                 end = time.time()
                 print 'time for increase logp',end-start
         B_place = max(B_place,Bold_m0)
+
+def testC1(S):
+
+    Sunits = solve_S_unit_equation(S)
+    J = [QQ(0),QQ(1728)]
+    for l in Sunits:
+        if j_invariant(l) not in J:
+            J.append(j_invariant(l))
+    Jfinal = []
+    curves = []
+    for j in J:
+        if len(egros_from_j(j,S)) > 0:
+            curves += egros_from_j(j,S)
+            Jfinal.append(j)
+    return Jfinal,curves
 
 def testC2():
     import time
@@ -324,7 +340,6 @@ def testS3():
     return 1
 
 
-
 def test3(J):
     J_L = []
     for j in J:
@@ -348,5 +363,15 @@ def test4(vectors,G,infinite_primes,R):
         if x.norm()**2 <= 2*n:
             count += 1
     return count,A
+
+def speedtest():
+
+    import time
+    start = time.time()
+    for i in range(10**8):
+        if i%432 ==0:
+            print i
+    end = time.time()
+    print 'time',end-start
 
 # 17 Orlescote Road, CV4 7BG, Coventry - Ros address

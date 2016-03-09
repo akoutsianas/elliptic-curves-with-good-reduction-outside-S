@@ -869,7 +869,7 @@ def support_of_G(G,infinite_prec):
         - ``infinite_prec`` : the preicision of the infinite places
         
     OUTPUT:
-        The finite,the real infinite and complex infinite part of the support of ``G`` respectively
+        The finite, the real infinite and complex infinite part of the support of ``G`` respectively
     
     EXAMPLE::
         
