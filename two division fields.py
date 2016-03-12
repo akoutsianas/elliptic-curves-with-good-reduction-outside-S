@@ -284,7 +284,7 @@ def c3_z3_not(K,S):
         sage:    L.relative_discriminant().factor(),L.is_galois_relative()
             (Fractional ideal (5))^2 True
     """
-    t = PolynomialRing(K,'t').gen()
+    t = polygen(K)
     T = suitable_element_of_Kz(K,S)
     SQ = []
     for prime in S:
@@ -292,19 +292,17 @@ def c3_z3_not(K,S):
         if p not in SQ:
             SQ.append(p)
     cubic_extensions = []
-    print 'prin for beta,trace....',len(T)
-    import time
-    start = time.time()
+
     for beta,trace in T:
         #we evaluate a 3 degree polynomial 'g'
         g = t**3 - 3*beta*t - trace
         gdisc = g.discriminant()
 
-        #if 'g' is irreducible and its relative discriminant is a S unit then it is a defining polynomial for a possible extension
-        # print 'prin g.is_irreducible'
+        #if 'g' is irreducible and its relative discriminant is a S unit then it is a defining
+        # polynomial for a possible extension
+
         if g.is_irreducible():
             L = K.extension(g,'c3')
-
             if K.ideal(gdisc).is_S_unit(S = S):
                 cubic_extensions.append(L)
             elif gdisc.absolute_norm().prime_to_S_part(S = SQ).is_square():
@@ -312,10 +310,8 @@ def c3_z3_not(K,S):
                 #we check if the discriminant of L is unramified outside S
 
                 if K.ideal(L.relative_discriminant()).is_S_unit(S = S):
-                # if len([I[0] for I in L.relative_discriminant().factor() if I[0] not in S]) == 0:
                     cubic_extensions.append(L)
-    end = time.time()
-    print 'time for each quadratic %s'%(end-start)
+
     return cubic_extensions
 
 
@@ -422,14 +418,11 @@ def s3_extensions(K,S):
     quadratic = quadratic_extensions(K,S)
     polynomials = []
     fields = []
-    print 'len(quadratic)',len(quadratic)
     for M in quadratic:
         g = [e for e in M.automorphisms() if e(M.gen()) != M.gen()][0]  #the generator of Gal(M/K)
         SM = sum([M.primes_above(p) for p in S],[])                   
 
-        print 'prin cubics'
         cubics = cubic_extensions(M,SM) #all the cubic extensions of M unramified outside SM
-        print 'after cubics'
         eKM = [e for e in K.embeddings(M) if e.preimage(M(K.gen())) == K.gen()][0] #the compatible embbeding of K in M
 
         #we check when L is an S3 extension and we give a 3-degree polynomial over K such that its splitting is L. By 
@@ -455,8 +448,12 @@ def s3_extensions(K,S):
                     f = f.change_ring(QQ)
                 
                 if not f.discriminant().is_square(): #if the discriminant of f is not a square we have a S3 extension
-                    polynomials.append(f)
-                    fields.append(L)
+                    #we make a `nice' choice of defining polynomials
+
+                    Lc = K.extension(f,'c3')
+                    fnew = reduced_defining_polynomial(Lc)
+                    polynomials.append(fnew)
+                    fields.append(M.extension(fnew,'c3'))
             else:              
 
                 #f doesn't have coefficients in K
@@ -472,7 +469,7 @@ def s3_extensions(K,S):
                     
                     rf = f.change_ring(L).roots()
                     rfbar = fbar.roots()
-                    #print f,fbar.change_ring(L).roots(),fbar
+
                     r = rf[0][0]+rfbar[0][0]
                     if r.is_zero():
                         #we take an other root of rfbar for which we have proved that r!=0
@@ -494,10 +491,35 @@ def s3_extensions(K,S):
                         #we check if the discriminant of 'h' is not a square
                         
                         if not h.discriminant().is_square():
-                           polynomials.append(h)
-                           fields.append(L)                       
+                            #we make a `nice' choice of defining polynomials
+
+                            Lc = K.extension(h,'c3')
+                            fnew = reduced_defining_polynomial(Lc)
+                            polynomials.append(fnew)
+                            fields.append(M.extension(fnew,'c3'))
              
     return polynomials, fields, quadratic
+
+
+def reduced_defining_polynomial(L):
+    r"""
+
+    INPUT:
+        - ``L`` : a number field
+
+    OUTPUT:
+
+        A defining polynomial of ``L`` with nicer defining polynomial.
+    """
+
+    K = L.base_field()
+    RQ = PolynomialRing(QQ,'x')
+    fabs = RQ(pari(L).nfinit(3)[0][0].list())
+
+    for fac in fabs.change_ring(K).factor():
+        L1 = K.extension(fac[0],'b')
+        if L1.is_isomorphic(L):
+            return fac[0]
 
 
 def two_division_fields(K,S):
@@ -555,8 +577,11 @@ def two_division_fields(K,S):
             x^3 + (-3*c2 - 9)*x + 5*c2 + 12 over its base field, Number Field in c3
             with defining polynomial x^3 + 3*x + 2 over its base field])
     """
-    c3 = cubic_extensions(K,S)
+    c3 = [NumberField(reduced_defining_polynomial(Lc),'c3') for Lc in cubic_extensions(K,S)]
+
     s3_polynomials,s3,c2 = s3_extensions(K,S)
-    
+
+    #we make reduction theory in the defining polynomials
+
     return c2,c3,s3_polynomials,s3
 

@@ -360,6 +360,7 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
         else:
             return reduce_bounds,1/delta_old**2
 
+
 def sieve_in_C2(Gl,Gm,B):
     r"""
 

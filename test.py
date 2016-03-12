@@ -263,25 +263,7 @@ def testS3():
     p = Integer(31)
     data = []
     while p <= 31:
-    # for p in [Integer(89)]:
-    #     S = [2,p]
-    #     print 'p',p
-    #
-    #     We compare with Cremona's database
-    #     N = [2**i * p**k for i,k in cartesian_product_iterator([xrange(9),xrange(6)])]
-        # N = [p**i for i in range(9)]
-
-        # ED = C.list(N)
-
-        # EC3S3 = [e for e in ED if e.two_division_polynomial().is_irreducible()]
-        #
-        # ES3 = [E for E in EC3S3 if not E.two_division_polynomial().discriminant().is_square()]
         Jdata = []
-        # for E in ES3:
-        #     if E.j_invariant() not in Jdata:
-        #         Jdata.append(E.j_invariant())
-
-        # print 'Jdata',Jdata
         M = NumberField(x**2-x-1,'a')
         S = M.primes_above(p)
         start = time.time()
