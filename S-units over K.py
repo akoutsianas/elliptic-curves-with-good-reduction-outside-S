@@ -43,11 +43,14 @@ def modified_height_infinite_case(a,place):
     
     if a == 0 or a == 1:
         raise ValueError('a has not to be 0 or 1')
-    # print 'a=%s'%(a)
+
+    precision = place.codomain().precision()
     K = place.domain()
     a = K(a)
-    # print 'place',place.domain(),K
     d = K.absolute_degree()
+    height  = max([d*(a.global_height(place.codomain().precision())),log(place(a)).abs(),1])/d
+    if RR(height) == Infinity:
+        return modified_height_infinite_case(a,higher_precision(place,2*precision))
     return max([d*(a.global_height(place.codomain().precision())),log(place(a)).abs(),1])/d
     
 
@@ -220,7 +223,9 @@ def upper_bound_modified_height_finite_case(a,embeddings,prime):
         D = d
     else:
         D = 2*d
-        
+    height = max([a.global_height(prec),max([log(em(a)).abs() for em in embeddings])/(2*pi*D),(f*log(p))/d])
+    if RR(height) == Infinity:
+        return upper_bound_modified_height_finite_case(a,[higher_precision(em,2*prec) for em in embeddings],prime)
     return max([a.global_height(prec),max([log(em(a)).abs() for em in embeddings])/(2*pi*D),(f*log(p))/d])
 
 
@@ -397,8 +402,11 @@ def reduction_step_real_case(place,B0,G,c7):
         sage: reduction_step_real_case(p1,10**10,G,2)
             (54,False)
     """   
-    n = len(G)     
+    n = len(G)
     Glog = [log(place(e_s_real(g,place))) for g in G]
+    if len([1 for g in G if place(e_s_real(g,place)).is_zero()]) > 0:
+        return 0,True
+
     #We choose the initial value of C such that the vector v not to have 0 everywhere
     C = round(max([1/l.abs() for l in Glog if l != 0])+1)
     
@@ -410,7 +418,7 @@ def reduction_step_real_case(place,B0,G,c7):
     T = (1 + n * B0)/2
     finish = False
     while  not finish:
-        A = copy(identity_matrix(ZZ,n));
+        A = copy(identity_matrix(ZZ,n))
         v = vector([round(g*C) for g in Glog])
         
         if v[n-1] == 0: #we replace the last element of v with an other non zero
@@ -431,7 +439,7 @@ def reduction_step_real_case(place,B0,G,c7):
             C = 2 * C
             #Again if our precision is not high enough
             if place.codomain().precision() < log(C)/log(2):
-                return 0,True 
+                return 0,True
         else:
             if sqrt(l-S) - T > 0:
                 return round((log(C * 2)-log(sqrt(l-S) - T))/c7),False
@@ -655,7 +663,7 @@ def reduction_step_finite_case(prime,B0,M,M_logp,m0,c3,precision):
     #if M is empty then it is easy to give an upper bound
     if len(M) == 0:
         if m0 != 1:
-            return round(max(log(p) * f * (m0-1).valuation(prime)/c3,0)),False
+            return RR(max(log(p) * f * (m0-1).valuation(prime)/c3,0)).floor(),False
         else:
             return 0,False
     #we evaluate the p-adic logarithms of m0 and we embedd it in the completion of K with respect to prime
@@ -683,7 +691,7 @@ def reduction_step_finite_case(prime,B0,M,M_logp,m0,c3,precision):
             if c8 > a.valuation(p):
                 B1 = (c8 + ordp_Disc/2)/c5
                 if B1 > low_bound:
-                    return round(B1),False
+                    return RR(B1).floor(),False
                 else:
                     return low_bound,False
     
@@ -717,11 +725,10 @@ def reduction_step_finite_case(prime,B0,M,M_logp,m0,c3,precision):
             y[i+n] = -mod(b0[i],p**u)
             
         l = minimal_vector(A.transpose(),y)
-        # print 'l > n * B0**2',l,n * B0**2
         if l > n * B0**2:
             B2 = (u + c9)/c5
             if B2 > low_bound:
-                return round(B2),False
+                return RR(B2).floor(),False
             else:
                 return low_bound,False
         else:
@@ -730,13 +737,54 @@ def reduction_step_finite_case(prime,B0,M,M_logp,m0,c3,precision):
 
 def c_constants(G,precision):
     r"""
+
+    INPUT:
+        - ``G`` : a list with the generators of the free part of a subgroup of `K^*`
+        - ``precision`` : the precision
+
+    OUTPUT:
+        The constants `c_1,c_2,c_3` that appear on the page 136 of the reference with checking numerical mistakes
+
+    REFERENCE:
+        Nigel P. Smart. The Algorithmic Resolution of Diophantine Equations. Number 41 in Students Texts. London Mathematical Society, 1998.
+
+    COMMENT:
+        `K` has to be an absolute number field
+
+    EXAMPLE::
+
+        sage: K.<a> = NumberField(x^3-2)
+        sage: S = K.primes_above(5)
+        sage: G = [g for g in K.S_unit_group(S = S).gens_values() if g.multiplicative_order() == Infinity]
+        sage: c_constants(G,50)
+            (1.6094379124341, 0.6213349,3455961, 0.20504052840467)
+
+        sage: K.<a> = NumberField(x^8 + 1)
+        sage: g = K.gen()
+        sage: G = [g^6+g^4+g^2,-(g^4+g^3+g^2),1+g^3-g^5,1-g]
+        sage: c_constants(G,80)
+            (1.4497321111770749035704, 0.68978261038039241636303, 0.170721196069147)
+    """
+    Real = RealField(prec = precision)
+    c1, c2,c3 = c_constants_without_check(G,2 * precision)
+    c1double, c2double,c3double = c_constants_without_check(G,2 * precision)
+    if (c1-c1double).abs() > 1:
+        c1,c2,c3 = c_constants(G,2 * precision)
+        return Real(c1),Real(c2),Real(c3)
+    else:
+        return c1,c2,c3
+
+
+def c_constants_without_check(G,precision):
+    r"""
     
     INPUT:
         - ``G`` : a list with the generators of the free part of a subgroup of `K^*`
         - ``precision`` : the precision
     
     OUTPUT:
-        The constants `c_1,c_2,c_3` that appear on the page 136 of the reference
+        The constants `c_1,c_2,c_3` that appear on the page 136 of the reference without checking numerical
+        mistakes.
         
     REFERENCE:
         Nigel P. Smart. The Algorithmic Resolution of Diophantine Equations. Number 41 in Students Texts. London Mathematical Society, 1998.
@@ -778,11 +826,9 @@ def c_constants(G,precision):
         #infinite_prec = complexSup[0].codomain().precision()
     else:
         K = finiteSup[0].ring()
-    # if not K.is_absolute():
-    #     raise ValueError('K has to be an absolute extension')
 
-    #R = RealField(prec)
     A = copy(zero_matrix(RealField(precision),len(finiteSup)+len(complexSup)+len(realSup),len(G)))
+    # Adoubleprecision = copy(zero_matrix(RealField(2*precision),len(finiteSup)+len(complexSup)+len(realSup),len(G)))
 
     #we create the matrix which has as rows the logarithms of the absolute value with respect a place for the lements in G
     
@@ -801,6 +847,7 @@ def c_constants(G,precision):
         
     for i,s in enumerate(realSup):
         v = [0] * len(G)
+        vbar = [0] * len(G)
         for j,g in enumerate(G):
             if abs(s(g)) != 1:
                 v[j] = log(abs(s(g)))
@@ -810,6 +857,7 @@ def c_constants(G,precision):
     
     for i,s in enumerate(complexSup):
         v = [0] * len(G)
+        vbar = [0] * len(G)
         for j,g in enumerate(G):
             if abs(s(g)) != 1:
                 v[j] = 2 * log(abs(s(g)))
@@ -818,25 +866,24 @@ def c_constants(G,precision):
     #We find the minimum infinite norm of all the invertible submatrices of A 
 
     n = len(finiteSup) + len(complexSup) + len(realSup)
-    # print 'len(finiteSup), len(complexSup), len(realSup)',len(finiteSup), len(complexSup) , len(realSup)
     s = Set(range(n))
     X = s.subsets(len(G)).list()
     c1 = -Infinity
     for g in X: 
         M = A[g.list(),:] #the submatrix associate to g
         d = M.determinant()
-
         #if the precision is high enough the determinant of M can not be 'quite small'
-        
-        if d > 2**(-round(precision/2)):
+
+        if d > 2**(-RR(precision/2).floor()):
             B = M.inverse()
             a = max([sum([b.abs() for b in row]) for row in B.rows()])
             if a > c1:
                 c1 = a
+
     c2 = 1/c1
     c3 = c2/len(G)
     c3 = (99 * c3)/100
-    
+
     return c1,c2,c3
 
 
@@ -869,9 +916,9 @@ def initial_bound_real_case(G2free,place,c3):
         raise ValueError('place is not real')
 
     c5 = log(2)/c3
-    c7 = c3 
+    c7 = c3
     c8 = Baker_Wustholz_low_lattice_bound([e_s_real(g,place) for g in G2free],place)
-    
+
     return max([c5,(2 * (log(2) + c8 * log(c8/c7) ) )/c7,0])
     
     
@@ -1073,9 +1120,9 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
     #Since both groups have the same torsion part we define a global torsion
 
     if lenG1free == 0:
-        return 0#,solutions_when_no_free_part(g01,G2)
+        return g01.multiplicative_order()
     elif lenG2free == 0:
-        return 0#,solutions_when_no_free_part(g02,G1)
+        return g02.multiplicative_order()
 
     G1c1 ,G1c2, G1c3= c_constants(G1free,precision)
     G2c1,G2c2, G2c3 = c_constants(G2free,precision)
@@ -1084,24 +1131,21 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
     S1 = finiteSup1+complexSup1+realSup1
     S2 = finiteSup2+complexSup2+realSup2
 
-    import  time
-
     ##  STEP 1 - Initial bound  ##
     
     #Calculating initial bound for the real case
-    start = time.time()
 
     G1B1real = max([initial_bound_real_case(G2free,prime,G1c3) for prime in realSup1] + [0])
     G2B1real = max([initial_bound_real_case(G1free,prime,G2c3) for prime in realSup2] + [0])
     B1real = max(G1B1real,G2B1real)
-    # print('B1real',B1real)
+    # print('B1real',RR(G1B1real),RR(G2B1real))
     
     #Calculating initial bound for the complex case
     
     G1B1complex = max([initial_bound_complex_case(G2free,prime,g02,G1c3) for prime in complexSup1] + [0])
     G2B1complex = max([initial_bound_complex_case(G1free,prime,g01,G2c3) for prime in complexSup2] + [0])
     B1complex = max(G1B1complex,G2B1complex)
-    # print('B1complex',B1complex.n(21))
+    # print('B1complex',RR(B1complex).n(21))
     
     #Calculating initial bound for the finite case and objects we need for the reduction step
     
@@ -1119,40 +1163,42 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         G2finite_initialization.append([prime, M0, M])
         G2B1finite = max(G2B1finite,B1)
     B1finite = max(G1B1finite,G2B1finite)
+    # print('B1finite',RR(B1finite).n(21))
     B1 = RR(max(B1real,B1complex,B1finite)).floor()
+    # print 'B1',B1
 
     ##  STEP 2 - Reduction step  ##
     
     # Real case
     # print 'real'
-    start = time.time()
-
-    # print 'G1'
     #G1
     G1B2real = 0
     for place in realSup1:
         Bold = B1
         finish = False
         while not finish:
+            # print 'Bold',Bold
+            # return place,Bold,G2free,G1c3
             Bnew , increase_precision = reduction_step_real_case(place,Bold,G2free,G1c3)
-
+            # print 'Bnew',Bnew
             #if we have to increase the precision we evaluate c1,c2,c3 constants again
 
             if not increase_precision:
                 if Bnew < Bold:
                     Bold = Bnew
+                    if Bold <= 2:
+                        finish = True
+                        Bold = 2
                 else:
                     finish = True
             else:
                 #we evaluate with higher precision G1c1 , G1c2 and G1c3
 
-                # temp_finiteSup1, temp_realSup1, temp_complexSup1 = support_of_G(G1,2*place.codomain().precision())
                 G1c1 ,G1c2, G1c3 = c_constants(G1free,2*place.codomain().precision())
                 place = higher_precision(place,2*place.codomain().precision())
 
         G1B2real = max(G1B2real,Bold)
 
-    #print 'G2'
     #G2
     G2B2real = 0
     for place in realSup2:
@@ -1166,31 +1212,30 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             if not increase_precision:
                 if Bnew < Bold:
                     Bold = Bnew
+                    if Bold <= 2:
+                        finish = True
+                        Bold = 2
                 else:
                     finish = True
             else:
                 #we evaluate with higher precision G2c1 , G2c2 and G2c3
 
-                # temp_finiteSup2, temp_realSup2, temp_complexSup2 = support_of_G(G2,2*place.codomain().precision())
                 G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
                 place = higher_precision(place,2*place.codomain().precision())
 
         G2B2real = max(G2B2real,Bold)
     B2real = max(G1B2real,G2B2real)
-    end = time.time()
-    # print 'time for real part %s'%(end-start)
+    # print 'B2real',B2real
 
-    #  Complex case
+    # Complex case
     # print 'complex'
-    start = time.time()
-
-    #print 'G1'
     #G1
     G1B2complex = 0
     for place in complexSup1:
         B_place = 0
         for g0 in [g02**i for i in range(g02.multiplicative_order())]:
             Bold_g0 = B1
+            # print('Bold_g0',Bold_g0,g0)
             finish = False
             while not finish:
                 Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G2free,g0,G1c3/2)
@@ -1199,6 +1244,9 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                 if not increase_precision:
                     if Bnew_g0 < Bold_g0:
                         Bold_g0 = Bnew_g0
+                        if Bold_g0 <= 2:
+                            finish = True
+                            Bold_g0 = 2
                     else:
                         finish = True
                 else:
@@ -1224,6 +1272,9 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                 if not increase_precision:
                     if Bnew_g0 < Bold_g0:
                         Bold_g0 = Bnew_g0
+                        if Bold_g0 <= 2:
+                            finish = True
+                            Bold_g0 = 2
                     else:
                         finish = True
                 else:
@@ -1234,9 +1285,10 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             B_place = max(B_place,Bold_g0)
         G2B2complex = max(G2B2complex,B_place)
     B2complex = max(G1B2complex,G2B2complex)
+    # print 'B2complex',B2complex
 
     #  Finite case
-
+    # print 'finite'
     # print 'G1'
     G1B2finite = 0
     for P in G1finite_initialization:
@@ -1255,6 +1307,9 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                     if not increase_precision:
                         if Bnew_m0 < Bold_m0:
                             Bold_m0 = Bnew_m0
+                            if Bold_m0 <= 2:
+                                finish = True
+                                Bold_m0 = 2
                         else:
                             finish = True
                     else:
@@ -1285,6 +1340,9 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
                     if not increase_precision:
                         if Bnew_m0 < Bold_m0:
                             Bold_m0 = Bnew_m0
+                            if Bold_m0 <= 2:
+                                finish = True
+                                Bold_m0 = 2
                         else:
                             finish = True
                     else:

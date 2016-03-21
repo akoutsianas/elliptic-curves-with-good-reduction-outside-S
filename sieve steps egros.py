@@ -158,7 +158,6 @@ def trivial_Tp_finite_place(B,prime,M0,M,M0_logp,M_logp,delta,precision):
         sage: trivial_Tp_finite_place(88,prime,-1,M,1/R1,40)
             True      
     """
-    # print 'new trivial Tp finite'
     if len([m for m in M+M0 if m.valuation(prime) != 0]) > 0:
         raise ValueError('There is an element without non zero valuation at prime') 
     K = prime.ring()
@@ -344,8 +343,6 @@ def reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R):
     #we make an arbitrary choice of an initial delta
     delta_old = 1/R
     delta_new = sqrt(delta_old)
-    # for p in infinite_primes:
-    #     print '[]',[log(p(g).abs()) for g in Gl]
 
     #we reduce the bounds for the units
     reduce_bounds = bound_Gl
@@ -392,9 +389,6 @@ def sieve_in_C2(Gl,Gm,B):
     bound_Gl = [Gl[0].multiplicative_order()]+[B]*(len(Gl)-1)
     bound_Gm = [Gm[0].multiplicative_order()]+[B]*(len(Gm)-1)
 
-    print 'bound_Gl-0',bound_Gl
-    print 'bound_Gm-0',bound_Gm
-
     Sunits = []
     Smunit_group = L.S_unit_group(S=Sm)
     if len(Gl) <= 2:
@@ -429,43 +423,37 @@ def sieve_in_C2(Gl,Gm,B):
         elif tau(p) in Slreduce:
             bound_Sm[i] = bound_Slreduce[Slreduce.index(tau(p))]
         else:
-            bound_Sm[i] = sum([g.valuation(p).abs() * b for g,b in zip(Gm,bound_Gm)])
+            bound_Sm[i] = reduce_the_bound_for_p_in_support_of_Gl_C2(p,Gl,B)
 
+    print 'boundSlreduce',bound_Slreduce,Slreduce
     bound_Gl = bounds_for_exponents_from_bounds_for_primes(Gl,Slreduce,bound_Slreduce,bound_Gl)
     bound_Gm = bounds_for_exponents_from_bounds_for_primes(Gm,Sm,bound_Sm,bound_Gm)
     print 'bound_Gl-2',bound_Gl
     print 'bound_Gm-2',bound_Gm
-    end = time.time()
-    print 'time for Slreduce %s'%(end -start)
 
-    start = time.time()
     R = max([exp(sum([(log(s(g).abs())).abs() * b if is_real_place(s) else (2*log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl)])) for s in infinite_primes])
-    # print 'R',R
-    # return reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
     bound_Gl , R = reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
 
     print 'bound_Gl-3',bound_Gl
     print 'bound_Gm-3',bound_Gm
-    end = time.time()
-    print 'time for reduce unit generators %s'%(end-start)
 
     #we use triangle inequality to reduce the bound
 
     old_bound = copy(bound_Gl)
-    # print '1-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
     for p in infinite_primes:
         bound_Gl = reduce_bound_with_simple_inequalities_C3(Gl,p,bound_Gl,R)
-    # print '2-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
     while old_bound != bound_Gl:
         old_bound = copy(bound_Gl)
         for p in infinite_primes:
             bound_Gl = reduce_bound_with_simple_inequalities_C3(Gl,p,bound_Gl,R)
-        # print '3-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
     print 'bound_Gl-4',bound_Gl
     print 'bound_Gm-4',bound_Gm
+    print 'bound_Sl',bound_Slreduce
+    print 'bound_Sm',bound_Sm
 
+    return 1
     Sunits = []
 
     #Since we have reduced as much as we can, now we are able to make a simple loop to find the rest of the solutions
@@ -601,7 +589,8 @@ def reduce_the_bound_for_p_in_support_of_Gl_C2(prime,Gm,B):
     """
     Blow = 1
     Bupp = B
-    Bmid = (QQ((Blow+Bupp)/2)).floor()
+    Bmid = RR((Blow+Bupp)/2).floor()
+
     L = prime.ring()
     Labs = L.absolute_field('a')
     eLLabs = L.embeddings(Labs)[0]
@@ -617,12 +606,12 @@ def reduce_the_bound_for_p_in_support_of_Gl_C2(prime,Gm,B):
     new_Gm0_abs_logp = [log_p(m0,prime_abs,precision) for m0 in new_Gm0_abs]
 
     while Bupp-Blow > 1:
+
         trivial, new_Gm0_abs_logp, new_Gm_abs_logp, precision = trivial_Tp_finite_place(B,prime_abs,new_Gm0_abs,new_Gm_abs,new_Gm0_abs_logp,new_Gm_abs_logp,p**(-Bmid*f),precision)
         if trivial:
             Bupp = Bmid
         else:
             Blow = Bmid
-        # print 'Bupp=%s, Blow=%s'%(Bupp,Blow)
         Bmid = (QQ((Blow+Bupp)/2)).floor()
     return Bupp
 
@@ -1506,8 +1495,6 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
     infinite_primes_Gl = sum(support_of_G(Gl,200)[1:],[])
     infinite_primes_Gm = sum(support_of_G(Gm,200)[1:],[])
     infinite_primes = [p for p in infinite_primes_Gl if p in infinite_primes_Gm]
-    # print 'bounds',bounds
-    # print 'infinite_primes',infinite_primes
 
     #we find which generators are units
     units_index = [i for i,g in enumerate(Gl) if g.is_integral() and g.absolute_norm().abs() == 1 and g.multiplicative_order() == Infinity]
@@ -1519,24 +1506,17 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
 
     #we are going to reduce the bound for units using Smart's ideas
     Bold = max([bounds[b] for b in units_index])
-    # print 'Bold',Bold
 
     #we find logRlprime
     logRlprime = max([sum([b * log(p(g).abs()).abs() for b,g in zip(bounds,Gl) if g not in Glunit]) if is_real_place(p) else sum([2 * b * log(p(g).abs()).abs() for b,g in zip(bounds,Gl) if g not in Glunit])for p in infinite_primes])
-    # print 'logRlprime',logRlprime
 
     #we make an arbitrary choice of an initial delta
     delta_old = 1/R
-    # print 'delta_old',delta_old
     delta_new = sqrt(delta_old)
-    # print 'delta_new',delta_new
 
     #we reduce the bounds for the units
     reduce_bounds = bounds
-    # print 'reduce_bounds',reduce_bounds
     while True:
-        # print 'Bold',Bold
-        # print 'delta_new',delta_new
         sm = len([1 for place in infinite_primes_Gm if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gm[1:],delta_new)])
         sl = len([1 for place in infinite_primes_Gl if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)])
         if sm == len(infinite_primes_Gm) and sl == len(infinite_primes_Gl):
@@ -1545,7 +1525,6 @@ def reduce_bound_for_unit_generators_S3(Gl,Gm,bounds,R):
             delta_new = sqrt(delta_new)
             reduce_bounds = [min(b,Bold) if i in units_index else b for i,b in enumerate(reduce_bounds)]
             logRlprime = max([sum([b * log(p(g).abs()).abs() for b,g in zip(reduce_bounds,Gl) if g not in Glunit]) if is_real_place(p) else sum([2 * b * log(p(g).abs()).abs() for b,g in zip(reduce_bounds,Gl) if g not in Glunit])for p in infinite_primes])
-            # print 'reduce_bounds',reduce_bounds
         else:
             return reduce_bounds,1/delta_old**2
 
@@ -1609,14 +1588,8 @@ def sieve_in_S3(Gl,Gm,B):
             if p not in Sm:
                 SlnotSm_gp3.append(p)
 
-
-    # print 'Sl',Sl
-    # print 'SlnotSm_gp3',SlnotSm_gp3
-    # return sigma
-
     #we make lists of upper bounds for each generator
     bound_Gl = [Gl[0].multiplicative_order()]+[B]*(len(Gl)-1)
-    # bound_Gm = [Gm[0].multiplicative_order()]+[B]*(len(Gm)-1)
     bound_Sl = [0]*len(Sl)
     print 'bound Gl-0',bound_Gl
 
@@ -1811,3 +1784,68 @@ def elliptic_curves_with_good_reduction_with_S3_two_division_field(K,S):
 
 
 
+
+##Non trivial Tp set using Smart's ideas
+
+def non_trivial_Tp_finite_case(G,prime,bounds,delta,S):
+    r"""
+
+    INPUT:
+        - ``G`` : a list of generators
+        - ``prime`` : a prime ideal of ``K``
+        - ``bounds``` : a list of positive integers which are the bounds of the exponents for ``G``
+        - ``delta`` : a real number less than `1`
+
+    OUTPUT:
+
+        All the solutions of the inequality `|g-1|_{\mathcal{p}}<\delta` where `g` lies in ``G`` such that
+        they are `S`-units
+
+    EXAMPLE::
+
+        sage:
+    """
+
+    new_G0, new_G ,k = a_basis_with_0_order_at_p(prime,G)
+    new_bounds = [b for i,b in enumerate(bounds) if i != k]
+
+    precision = 20
+    supp = support_of_G(new_G,precision)
+    s = len(supp[0])+len(supp[1])+len(supp[2])
+
+    primeR = [exp(sum([b*log(g.abs_non_arch(p,precision)).abs() for b,g in zip(new_bounds,new_G)])) for p in supp[0]]
+    realR = [exp(sum([b*log(place(g).abs()).abs() for b,g in zip(new_bounds,new_G)])) for place in supp[1]]
+    complexR = [exp(sum([2*b*log(place(g).abs()).abs() for b,g in zip(new_bounds,new_G)])) for place in supp[2]]
+
+    A = copy(zero_matrix(RealField(prec = precision),s,len(new_G)))
+
+    i = 0
+    for r,p in zip(primeR,supp[0]):
+        A[i] = [log(g.abs_non_arch(p,precision))/log(r) for g in new_G]
+        i += 1
+    for r,place in zip(realR,supp[1]):
+        A[i] = [log(place(g).abs())/log(r) for g in new_G]
+        i += 1
+    for r,place in zip(complexR,supp[2]):
+        A[i] = [2 * log(place(g).abs())/log(r) for g in new_G]
+        i += 1
+    Q = A.transpose() * A
+
+    for m0 in new_G0:
+        y = copy(zero_vector(RealField(prec = precision),s))
+        i = 0
+        for r,p in zip(primeR,supp[0]):
+            y[i] = log(m0.abs_non_arch(p,precision))/log(r)
+            i += 1
+        for r,place in zip(realR,supp[1]):
+            y[i] = log(place(m0).abs())/log(r)
+            i += 1
+        for r,place in zip(complexR,supp[2]):
+            A[i] = 2 * log(place(m0).abs())/log(r)
+            i += 1
+        y = -y
+
+        Q = pari(A.transpose() * A)
+        # List = Q.qfminim(pari(sqrt(s)),flag = 2)
+
+    return List

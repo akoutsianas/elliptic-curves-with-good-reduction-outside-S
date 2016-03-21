@@ -54,7 +54,8 @@ def reduce_boundsC2(K,Gl,Gm,precision):
         elif tau(p) in Slreduce:
             bound_Sm[i] = bound_Slreduce[Slreduce.index(tau(p))]
         else:
-            bound_Sm[i] = sum([g.valuation(p).abs() * b for g,b in zip(Gm,bound_Gm)])
+            bound_Sm[i] = reduce_the_bound_for_p_in_support_of_Gl_C2(p,Gl,B)
+                #sum([g.valuation(p).abs() * b for g,b in zip(Gm,bound_Gm)])
 
     bound_Gl = bounds_for_exponents_from_bounds_for_primes(Gl,Slreduce,bound_Slreduce,bound_Gl)
     bound_Gm = bounds_for_exponents_from_bounds_for_primes(Gm,Sm,bound_Sm,bound_Gm)
@@ -100,11 +101,11 @@ def boundsC2():
     o.write('C2 - case \n\n')
     o.close()
     P = Primes()
-    pr = Integer(79)
+    pr = Integer(23)
     if K == QQ:
         K = NumberField(x-1,'a')
-    while pr <= 100:
-        S = [2,7,pr]
+    while pr <= 23:
+        S = [2,3,pr]
         if K.absolute_degree() == 1:
             SK = [K.prime_above(p) for p in S]
         else:
@@ -159,13 +160,13 @@ def boundsC2():
         for i in range(N):
             if A[i,i] != 0:
                 M,Gl,Gm = C2_extensions[i]
-                print('M = ',M.defining_polynomial())
                 start = time.time()
-                bounds = reduce_boundsC2(M,Gl,Gm,200)
+                bounds = [0,0]#reduce_boundsC2(M,Gl,Gm,200)
                 end = time.time()
                 sec = RR(end - start)
                 print('Gl = ',Gl)
                 print('Gm = ',Gm)
+                # print('$%s$ & $%s$ & $%s$\\\ \hline\n'%(M.defining_polynomial(),len(Gl)-1,len(Gm)-1))
                 o = open('Desktop/results.txt','a')
                 # o = open('output_bounds/resultsC2.txt','a')
                 o.write('field = %s, time = %ss, Bl = %s, Bm = %s\n'%(M.defining_polynomial(),str(sec.floor()),str(bounds[0]),str(bounds[1])))
@@ -202,13 +203,14 @@ def boundsC2():
                 #Here we evaluate the curves with respect to C2_extensions[maxedges]
 
                 M,Gl,Gm = C2_extensions[maxedges]
-                print('M = ',M.defining_polynomial())
+                # print('M =',M.defining_polynomial())
                 start = time.time()
-                bounds = reduce_boundsC2(M,Gl,Gm,200)
+                bounds = [0,0]#reduce_boundsC2(M,Gl,Gm,200)
                 end = time.time()
                 sec = RR(end-start)
                 print('Gl = ',Gl)
                 print('Gm = ',Gm)
+                # print('$%s$ & $%s$ & $%s$\\\ \hline\n'%(M.defining_polynomial(),len(Gl)-1,len(Gm)-1))
                 o = open('Desktop/results.txt','a')
                 # o = open('output_bounds/resultsC2.txt','a')
                 o.write('field = %s, time = %ss, Bl = %s, Bm = %s\n'%(M.defining_polynomial(),str(sec.floor()),str(bounds[0]),str(bounds[1])))
@@ -303,8 +305,8 @@ def boundsC3():
     import time
 
     K = QQ
-    # o = open('Desktop/results.txt','w')
-    o = open('output_bounds/resultsC3.txt','w')
+    o = open('Desktop/results.txt','w')
+    # o = open('output_bounds/resultsC3.txt','w')
     o.write('C3 - case \n\n')
     o.close()
 
@@ -312,8 +314,8 @@ def boundsC3():
         K = NumberField(x-1,'a')
 
     P = Primes()
-    pr = Integer(7)
-    while pr <= 7:
+    pr = Integer(23)
+    while pr <= 23:
 
         S = [2,3,pr]
         if K.absolute_degree() == 1:
@@ -321,8 +323,8 @@ def boundsC3():
         else:
             SK = S
 
-        # o = open('Desktop/results.txt','a')
-        o = open('output_bounds/resultsC3.txt','a')
+        o = open('Desktop/results.txt','a')
+        # o = open('output_bounds/resultsC3.txt','a')
         o.write('S = %s\n\n'%(str(S)))
         o.close()
 
@@ -336,33 +338,33 @@ def boundsC3():
                 if len([1 for p in primes_above_2_not_in_SK if L.relative_discriminant().valuation(p) % 2 != 0])  == 0:
                     cubic_fields.append(L)
         else:
-            cubic_fields = cubic_extensions(K,SK)
-
+            cubic_fields,nice_cubic_fields = cubic_extensions(K,SK)
         #now we have to add the primes above 2 in SK
         for p in K.primes_above(2):
             if p not in SK:
                 SK.append(p)
 
-        for L in cubic_fields:
+        for L in nice_cubic_fields:
             print 'L=%s'%(L)
             SL = sum([L.primes_above(p) for p in SK],[])
             Gl,Gm = Norm_subgroup_division_field(SK,SL)
             start = time.time()
-            bounds = reduce_boundsC3(L,Gl,Gm,200)
+            bounds = 0#reduce_boundsC3(L,Gl,Gm,200)
             end = time.time()
             sec = RR(end - start)
-            print('Gl = ',Gl)
-            print('Gm = ',Gm)
-            # o = open('Desktop/results.txt','a')
-            o = open('output_bounds/resultsC3.txt','a')
+            # print('Gl = ',Gl)
+            # print('Gm = ',Gm)
+            print('$%s$ & $%s$ & $%s$\\\ \hline\n'%(L.defining_polynomial(),len(Gl)-1,L.S_unit_group(S=SL).rank()))
+            o = open('Desktop/results.txt','a')
+            # o = open('output_bounds/resultsC3.txt','a')
             o.write('field = %s, time = %ss, Bl = %s\n'%(L.defining_polynomial(),str(sec.floor()),str(bounds)))
             o.write('Gl = %s\n'%(Gl))
             o.write('Gm = %s\n\n'%(Gm))
             o.close()
 
         pr = P.next(pr)
-        # o = open('Desktop/results.txt','a')
-        o = open('output_bounds/resultsC3.txt','a')
+        o = open('Desktop/results.txt','a')
+        # o = open('output_bounds/resultsC3.txt','a')
         o.write('\n\n\n')
         o.close()
 
@@ -413,6 +415,7 @@ def reduce_boundsS3(K,Gl,Gm,precision):
             bound_Sl[Sl.index(sigma(sigma(prime)))] = e
 
     bound_Gl = bounds_for_exponents_from_bounds_for_primes(Gl,Sl,bound_Sl,bound_Gl)
+    # print 'bound_Gl-1',bound_Gl
 
     #we reduce the bound for the unit generators
     R = max([exp(sum([(2*log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl) if s(g).abs() != 1])) for s in infinite_primes])
@@ -440,7 +443,7 @@ def boundsS3():
 
     K = QQ
     o = open('Desktop/results.txt','w')
-    # o = open('output_bounds/resultsC3.txt','w')
+    # o = open('output_bounds/resultsS3.txt','w')
     o.write('S3 - case \n\n')
     o.close()
 
@@ -448,17 +451,17 @@ def boundsS3():
         K = NumberField(x-1,'a')
 
     P = Primes()
-    pr = Integer(79)
-    while pr <= 79:
+    pr = Integer(23)
+    while pr <= 23:
 
-        S = [pr]
+        S = [2,3,pr]
         if K.absolute_degree() == 1:
             SK = [K.prime_above(p) for p in S]
         else:
             SK = S
 
         o = open('Desktop/results.txt','a')
-        # o = open('output_bounds/resultsC3.txt','a')
+        # o = open('output_bounds/resultsS3.txt','a')
         o.write('S = %s\n\n'%(str(S)))
         o.close()
 
@@ -490,23 +493,26 @@ def boundsS3():
         for p in primes_above_2_not_in_SK:
             SK = [p]+SK
 
+        i = 0
         for f,L in zip(cubic_polynomials,S3_fields):
-            print 'L=%s'%(L)
+            # print 'L=%s'%(L)
             SL = sum([L.primes_above(p) for p in SK],[])
             Gl,Gm = Norm_subgroup_division_field(SK,SL)
             start = time.time()
             bounds = 0#reduce_boundsS3(L,Gl,Gm,200)
             end = time.time()
             sec = RR(end - start)
-            print('Gl = ',Gl)
-            print('Gm = ',Gm)
+            # print('Gl = ',Gl)
+            # print('Gm = ',Gm)
+            print('$%s$ & $%s$ & $%s$\\\ \hline'%(L.defining_polynomial(),len(Gl)-1,L.S_unit_group(S=SL).rank()))
             o = open('Desktop/results.txt','a')
-            # o = open('output_bounds/resultsC3.txt','a')
-            o.write('field = %s, f = %s, M = %s, time = %ss, Bl = %s\n'%(L.defining_polynomial(),f,
+            # o = open('output_bounds/resultsS3.txt','a')
+            o.write('i = %s, field = %s, f = %s, M = %s, time = %ss, Bl = %s\n'%(str(i),L.defining_polynomial(),f,
             L.base_field().defining_polynomial(),str(sec.floor()),str(bounds)))
             o.write('Gl = %s\n'%(Gl))
             o.write('Gm = %s\n\n'%(Gm))
             o.close()
+            i += 1
 
         pr = P.next(pr)
         o = open('Desktop/results.txt','a')
