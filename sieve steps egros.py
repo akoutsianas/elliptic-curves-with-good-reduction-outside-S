@@ -633,6 +633,7 @@ def bounds_for_exponents_from_bounds_for_primes(G,primes,primes_bounds,exp_bound
         sage:
     """
     infinite_primes = sum(support_of_G(G,200)[1:],[])
+
     #we find for which generators the exponents will change
     GS = [g for g in G if len([1 for p in primes if g.valuation(p) !=0]) > 0]
     # print 'GS',GS
@@ -954,7 +955,6 @@ def reduce_bound_for_unit_generators_C3(Gl,bounds,R):
     units_index = [i for i,g in enumerate(Gl) if g.is_integral() and g.absolute_norm().abs() == 1 and g.multiplicative_order() == Infinity]
     Glunit = [g for i,g in enumerate(Gl) if i in units_index]
     c1_units = c_constants(Glunit,200)[0]
-    # print 'Glunit',Glunit
 
 
     #we are going to reduce the bound for units using Smart's ideas
@@ -970,11 +970,6 @@ def reduce_bound_for_unit_generators_C3(Gl,bounds,R):
     #we reduce the bounds for the units
     reduce_bounds = bounds
     while True:
-        # print 'len(infinite_primes)',len(infinite_primes)
-        # for place in infinite_primes:
-        #     if not trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new):
-        #         return reduce_bounds[1:],place,Gl[1:],delta_new
-        # print '[]',[1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)]
         if len([1 for place in infinite_primes if trivial_Tp_infinite_place(reduce_bounds[1:],place,Gl[1:],delta_new)]) == len(infinite_primes):
             Bold = min((c1_units * log(delta_new).abs() + c1_units * logRlprime).floor(),Bold)
             # print 'Bold',Bold
@@ -1094,14 +1089,11 @@ def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
     L = Gm[0].parent()
     sigma = find_sigma(L)
     SunitL = L.S_unit_group(S=Sl)
-    # prime ,prime_exp = I.factor()[0]
     sigma_prime = sigma(prime)
 
     #here we need to make a change of generators such that all the generators have 0 valuation at p
     new_Gm0, new_Gm ,k = a_basis_with_0_order_at_p(prime,Gm)
-    # print 'new_Gm0',len(new_Gm0)
     reduce_bounds = [e for i,e in enumerate(bounds) if i != k]
-    # print 'new_Gm0',len(new_Gm0)
 
     exp = 1
     I = prime
@@ -1113,98 +1105,86 @@ def sieve_for_p_in_support_of_Gl_C3(prime,Gm,Sl,bounds,bound_prime):
     if exp > bound_prime:
         return [] , exp
 
+
+
     while not finish and exp <= bound_prime:
-        orders = I.idealstar().gens_orders()
-        # print 'orders',orders
+        for m0 in new_Gm0:
+            orders = I.idealstar().gens_orders()
 
-        #we create the congruence relations for the exponents with respect to the ideal p**n
-        M = matrix(ZZ,len(new_Gm),len(orders),[I.ideallog(g) for g in new_Gm])
-        # print 'M',M
-        new_Gm0log = matrix(ZZ,[I.ideallog(m0) for m0 in new_Gm0])
-        # print 'new_Gm0log',new_Gm0log
-        GCD = [gcd(list(col)+[m]+list(m0)) for col,m,m0 in zip(M.columns(),orders,new_Gm0log.columns())]
-        # print 'GCD',GCD
-        prime_orders = [c/g for c,g in zip(orders,GCD)]
-        # print 'prime_orders',prime_orders
-        prime_M = matrix(ZZ,[col/g for col,g in zip(M.columns(),GCD)]).transpose()
-        # print 'prime_M',prime_M
-        prime_Gm0log =matrix(ZZ,[col/g for col,g in zip(new_Gm0log.columns(),GCD)]).transpose()
-        # print 'prime_Gm0log',prime_Gm0log
-        # print 'max(prime_orders)',max(prime_orders)
-        # print 'sqrt(max(bounds))',RR(sqrt(max(bounds)))
+            #we create the congruence relations for the exponents with respect to the ideal p**n
+            M = matrix(ZZ,len(new_Gm),len(orders),[I.ideallog(g) for g in new_Gm])
+            print 'M',M
+            new_Gm0log = matrix(ZZ,[I.ideallog(m0) for m0 in new_Gm0])
+            GCD = [gcd(list(col)+[m]+list(m0)) for col,m,m0 in zip(M.columns(),orders,new_Gm0log.columns())]
+            prime_orders = [c/g for c,g in zip(orders,GCD)]
+            prime_M = matrix(ZZ,[col/g for col,g in zip(M.columns(),GCD)]).transpose()
+            prime_Gm0log =matrix(ZZ,[col/g for col,g in zip(new_Gm0log.columns(),GCD)]).transpose()
 
-        #Check if we have to increase the exponent
-        if max(prime_orders) > sqrt(max(bounds)):
-            finish = True
-        else:
-            exp += 1
-            I *= prime
+            #Check if we have to increase the exponent
+            if max(prime_orders) > sqrt(max(bounds)):
+                finish = True
+            else:
+                exp += 1
+                I *= prime
 
-    maxorder = max(prime_orders)
-    # print 'maxorder',maxorder
-    import time
-    #Now we find which elements satisfy the congruence relation
-    # print 'len(new_Gm0log)',prime_Gm0log.dimensions()[0]
-    Sunits = []
-    # print 'len(new_Gm0)',len(new_Gm0)
-    for new_m0,prime_m0log in zip(new_Gm0,prime_Gm0log):
-        start = time.time()
-        # print 'new_m0',new_m0
-        # print 'mpika'
-        if k != 0:
-            congruence_bounds = [xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in reduce_bounds[1:]]
-            Bprime = [0 if 2*b >= maxorder else 1 for b in reduce_bounds[1:]]
-            B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(reduce_bounds[1:],congruence_bounds)]
-        else:
-            congruence_bounds = [xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in reduce_bounds]
-            Bprime = [0 if 2*b >= maxorder else 1 for b in reduce_bounds]
-            B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(reduce_bounds,congruence_bounds)]
-        print 'congruence_bounds',congruence_bounds
-        print 'Bprime',Bprime
-        print 'B',B
-        count = 0
-        m0_elements = []
-        valuations = []
-        start_congruence = time.time()
-        V = []
-        for v in cartesian_product_iterator(congruence_bounds):
-            v = vector(v)
-            if vector([((v*col)+m0)%m for m,m0,col in zip(prime_orders,prime_m0log,prime_M.columns())]).is_zero():
-                # print 'v',v
-                m0_elements.append(new_m0 * prod([g**e for g,e in zip(new_Gm,v)]))
-                V.append(v)
-                count += 1
-        end_congruence = time.time()
-        # print 'time for congruence %s'%(end_congruence - start_congruence)
-        print 'count',count
-        print 'percent=%s'%(RR(QQ(count)/QQ(prod([len(c) for c in congruence_bounds]))))
-        print 'number of case I have to check=%s'%(count*prod([2*b+1 if i == 0 else 1 for b,i in zip(B,Bprime)]))
+        maxorder = max(prime_orders)
+        #Now we find which elements satisfy the congruence relation
+        Sunits = []
+        for new_m0,prime_m0log in zip(new_Gm0,prime_Gm0log):
+            if k != 0:
+                congruence_bounds = [xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in reduce_bounds[1:]]
+                Bprime = [0 if 2*b >= maxorder else 1 for b in reduce_bounds[1:]]
+                B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(reduce_bounds[1:],congruence_bounds)]
+            else:
+                congruence_bounds = [xrange(maxorder) if 2*b >= maxorder else xrange(-b,b) for b in reduce_bounds]
+                Bprime = [0 if 2*b >= maxorder else 1 for b in reduce_bounds]
+                B = [QQ(b/len(c)).floor()+1 if len(c) !=0 else 1 for b,c in zip(reduce_bounds,congruence_bounds)]
+            print 'congruence_bounds',congruence_bounds
+            print 'Bprime',Bprime
+            print 'B',B
+            count = 0
+            m0_elements = []
+            valuations = []
+            start_congruence = time.time()
+            V = []
+            for v in cartesian_product_iterator(congruence_bounds):
+                v = vector(v)
+                if vector([((v*col)+m0)%m for m,m0,col in zip(prime_orders,prime_m0log,prime_M.columns())]).is_zero():
+                    # print 'v',v
+                    m0_elements.append(new_m0 * prod([g**e for g,e in zip(new_Gm,v)]))
+                    V.append(v)
+                    count += 1
+            end_congruence = time.time()
+            # print 'time for congruence %s'%(end_congruence - start_congruence)
+            print 'count',count
+            print 'percent=%s'%(RR(QQ(count)/QQ(prod([len(c) for c in congruence_bounds]))))
+            print 'number of case I have to check=%s'%(count*prod([2*b+1 if i == 0 else 1 for b,i in zip(B,Bprime)]))
 
-        # return I
-        #we determine the solutions
+            # return I
+            #we determine the solutions
 
-        l0_elements = [sigma(sigma(1/m0)) for m0 in m0_elements]
-        new_Gl = [sigma(sigma(1/g)) for g in new_Gm]
-        return new_Gl,new_Gm
-        if count != 0:
-            new_Gm_powers = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
-            new_Gl_powers = [sigma(sigma(1/g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
-            for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bprime)]):
-                # start1 = time.time()
-                m1 = prod([g**e for g,e in zip(new_Gm_powers,v)])
-                l1 = prod([g**e for g,e in zip(new_Gl_powers,v)])
-                # end1 = time.time()
-                # print 'time for products = %s'%(end1 - start1)
-                for m0,l0 in zip(m0_elements,l0_elements):
-                    start1 = time.time()
-                    if m0 == 1:#m0 * m1 + l0 * l1 == 1:
-                        m = m0 * m1
-                        if m0 * m1 not in Sunits:
-                            Sunits.append(m)
-                    end1 = time.time()
-                    # print 'time for each case %s'%(end1-start1)
-        # end = time.time()
-        # print 'time for one loop %s'%(end-start)
+            l0_elements = [sigma(sigma(1/m0)) for m0 in m0_elements]
+            new_Gl = [sigma(sigma(1/g)) for g in new_Gm]
+            return new_Gl,new_Gm
+            if count != 0:
+                new_Gm_powers = [g**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
+                new_Gl_powers = [sigma(sigma(1/g))**len(c) if b == 0 else 1 for g,c,b in zip(new_Gm,congruence_bounds,Bprime)]
+                for v in cartesian_product_iterator([xrange(-b,b) if i == 0 else xrange(1) for b,i in zip(B,Bprime)]):
+                    # start1 = time.time()
+                    m1 = prod([g**e for g,e in zip(new_Gm_powers,v)])
+                    l1 = prod([g**e for g,e in zip(new_Gl_powers,v)])
+                    # end1 = time.time()
+                    # print 'time for products = %s'%(end1 - start1)
+                    for m0,l0 in zip(m0_elements,l0_elements):
+                        start1 = time.time()
+                        if m0 == 1:#m0 * m1 + l0 * l1 == 1:
+                            m = m0 * m1
+                            if m0 * m1 not in Sunits:
+                                Sunits.append(m)
+                        end1 = time.time()
+                        # print 'time for each case %s'%(end1-start1)
+            # end = time.time()
+            # print 'time for one loop %s'%(end-start)
     return Sunits,exp
 
 
@@ -1289,10 +1269,7 @@ def sieve_in_C3(Gl,Gm,B):
 
     bound_Slreduce = [0]*len(Slreduce)
     for i,prime in enumerate(Slreduce):
-        # if prime in Slreduce:
         bound_Slreduce[i] = bound_Slreduce[Slreduce.index(prime)] = reduce_the_bound_for_p_in_support_of_Gl_C2(prime,Gm,B)
-        # else:
-        #     bound_Sl[i] = reduce_the_bound_for_p_in_support_of_Gl_C2(prime,Gm,B)
 
     bound_Sl = [0]*len(Sl)
     for i,p1 in enumerate(Slreduce):
@@ -1573,6 +1550,7 @@ def sieve_in_S3(Gl,Gm,B):
                 Sunits.append(l)
 
         return Sunits
+
     #we have gp6 primes
     for p in Sl:
         if len(L.primes_above(p.ideal_below().ideal_below())) == 6:
@@ -1615,27 +1593,23 @@ def sieve_in_S3(Gl,Gm,B):
     #we reduce the bound using simple inequalities
 
     old_bound = copy(bound_Gl)
-    # print '1-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
     for p in infinite_primes:
         bound_Gl = reduce_bound_with_simple_inequalities_C3(Gm,p,bound_Gl,R)
-    # print '2-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
     while old_bound != bound_Gl:
         old_bound = copy(bound_Gl)
         for p in infinite_primes:
             bound_Gl = reduce_bound_with_simple_inequalities_C3(Gm,p,bound_Gl,R)
-        # print '3-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
 
     print 'bound_Gl-3',bound_Gl
+    print 'bound_Sl',bound_Sl
 
     Sunits = []
 
     #we determine the solutions which are divisible by high powers of primes in SlnotSm_gp3
-    # print 'len(SlnotSm_gp3)',len(SlnotSm_gp3)
-    # return SlnotSm_gp3,Sl,bound_Gl,bound_Sl,R,infinite_primes
+
     for k,p in enumerate(SlnotSm_gp3):
-        return p,Sl,bound_Gl,bound_Sl
         solutions,i = sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Sl[Sl.index(p)])
 
         Sunits += solutions

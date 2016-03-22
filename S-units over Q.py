@@ -290,7 +290,7 @@ def a_base_for_Gm_star(B,A,p,m,m0):
     Bstar = matrix(ZZ,n)
     for i in range(n-1):
         a = mod(kbi[i][0] / kbi[n-1][0],(p-1)/2)
-        gstar = a.centerlift()
+        gstar = a.lift_centered()
         Bstar[i] = B2[i]-gstar * B2[n-1]
     
     
@@ -503,6 +503,7 @@ def solve_S_unit_equation_over_Q(S,precision = 200):
     
     #we find an upper bound
     B = applying_De_Weger_method(S,precision)
+    print 'B',B
     return sieve_S_unit_equation_over_Q(S,B,precision)
 
 
@@ -610,6 +611,7 @@ def sieve_S_unit_equation_over_Q(S,B,precision):
                 Bmid = floor((B0+B1)/2)
 
         bounds[i] = B1
+
     Sol = []
 
     #we find solutions which are divible by a `suitable' high power of a prime in S and are positive.

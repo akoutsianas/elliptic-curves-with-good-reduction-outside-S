@@ -1,29 +1,16 @@
-### Over Q
+#I want to use pari in order to speed up sieve
+#S = {2,3,5} i=1
 
-# K = NumberField(x-1,'a')
-# y = polygen(K,'t')
-# M = K.extension(y**2 + 3,'b')
-# c2 = M.gen()
-# t = polygen(M,'y')
-# L = M.extension(t**3 + c2,'c')
-# SK = sum([K.primes_above(p) for p in [2,3]],[])
-# SL = sum([L.primes_above(p) for p in SK],[])
-# SunitL = L.S_unit_group(S=SL)
-# Gl,Gm = Norm_subgroup_division_field(SK,SL)
-# B = 1083
-
-
-### Over quadratic
-
-M = NumberField(x**2-x-1,'a')
+K = NumberField(x-1,'b')
+y = polygen(K)
+M = K.extension(y**2-5,'c2')
 t = polygen(M,'t')
-a = M.gen()
-# L = M.extension(t**2-2*a,'c')
-# L = M.extension(t**3 - 186*t + 124*a - 62,'c')
-# B = 126
-L = M.extension(t**3 - 93*t + 124,'c')
-B = 1624
-SM = sum([M.primes_above(p) for p in [62]],[])
-SL = sum([L.primes_above(p) for p in SM],[])
-SunitL = L.S_unit_group(S=SL)
-Gl,Gm = Norm_subgroup_division_field(SM,SL)
+L = M.extension(t**3 - 12*t - 14,'c3')
+# c2 = M.gen()
+# c3 = L.gen()
+# Gl = [L(-1), (-1/10*c2 - 1/2)*c3**2 + (3/10*c2 + 1/2)*c3 + 13/10*c2 + 9/2, -1/5*c2*c3**2 + (1/10*c2 - 3/2)*c3 + 3/5*c2 - 2,
+#       -2/5*c2*c3 - 7/10*c2 - 1/2]
+# Gm = [L(-1), (1/10*c2 + 1/2)*c3**2 + (-3/10*c2 - 1/2)*c3 - 13/10*c2 - 7/2, (1/2*c2 - 1/2)*c3**2 + (-c2 + 2)*c3 - 3*c2 + 2,
+#       -4/5*c3**2 + (-1/5*c2 + 7/5)*c3 + 7/10*c2 + 59/10]
+bounds = [2, 122, 71, 44]
+bounds_Sl = [39,39]

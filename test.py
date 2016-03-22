@@ -322,177 +322,95 @@ def testS3():
     # o.close()
     return 1
 
+def DeWeger_theorem_for_test(S):
+    r"""
 
-def test3(J):
-    J_L = []
-    for j in J:
-        y = polygen(QQ)
-        f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
-        H = f.splitting_field('s')
-        if len(H.embeddings(L)) == 6 and j not in J_L:
-            J_L.append(j)
-    return J_L
+    OUTPUT:
+        ``S`` - 
+    """
 
 
-def test4(vectors,G,infinite_primes,R):
-    precision = infinite_primes[0].codomain().precision()
-    A = matrix(RealField(prec = precision),[[log(s(g).abs()) if is_real_place(s) else 2*log(s(g).abs()) for g in G] for s in infinite_primes])
-    A /= log(R)
-    # print 'A',A
-    n = len(infinite_primes)
-    count = 0
-    for v in vectors:
-        x = A*v
-        if x.norm()**2 <= 2*n:
-            count += 1
-    return count,A
+def speed_S3_sieve(Gl,Gm):
 
-def lose_S3(S3):
+    L = Gl[0].parent()
+    Sl, real_infinite_primes_Sl, complex_infinte_primes_Sl = support_of_G(Gl,200)
+    Sm, real_infinite_primes_Sm, complex_infinte_primes_Sm = support_of_G(Gm,200)
+    infinite_primes = [p for p in real_infinite_primes_Sl+complex_infinte_primes_Sl if p in real_infinite_primes_Sm+complex_infinte_primes_Sm]
+    sigma = find_sigma(L)
 
-    # S = {2,3,11}
-    x = polygen(QQ)
-    l = [x**3 - x**2 + x + 1, x**3 - 2, x**3 - 3, x**3 - 3*x - 4, x**3 - x**2 + 4*x + 2, x**3 + 3*x - 2, x**3 - 12,
-      x**3 - 6, x**3 - 3*x - 10, x**3 - x**2 - 7*x + 13, x**3 + 6*x - 1, x**3 - 11, x**3 - 9*x - 6, x**3 + 6*x - 10,
-      x**3 - 12*x - 28, x**3 + 6*x - 12, x**3 - 9*x - 3, x**3 - 22, x**3 - 9*x - 14, x**3 - 99, x**3 - 33,
-      x**3 + 6*x - 32, x**3 + 33*x - 22, x**3 + 33*x - 176, x**3 - 33*x - 66, x**3 - 132, x**3 - 396, x**3 - 198,
-      x**3 - 66, x**3 - 66*x - 176, x**3 + 18*x - 48, x**3 - 9*x - 30, x**3 - 27*x - 78, x**3 - 99*x - 330,
-      x**3 - 99*x - 66]
+    #gp3 and gp6 mean the primes which have 3 and 6 congugate primes respectively
 
-    M = QuadraticField(6,'c2')
-    for f in l:
-        L = f.splitting_field('a')
-        # print len([1 for F in S3 if L.is_isomorphic(F)])
-        # if len([1 for F in S3 if L.is_isomorphic(F)]) == 0:
-        #     ML = L.subfields(2)[0][0]
-        #     print 'ML',ML
-            # print L
-            # if M.is_isomorphic(ML):
-            #     print f,L
+    SlnotSm_gp3 = []
+    for p in Sl:
+        p_below = p.ideal_below().ideal_below()
+        if len(L.primes_above(p_below)) == 3:
+            if p not in Sm:
+                SlnotSm_gp3.append(p)
 
-        ML = L.subfields(2)[0][0]
-        if ML.is_isomorphic(M):
-            print f
-    return 1
+    bound_Gl = [2, 122, 71, 44]
+    bound_Sl = [39,39]
+    Sunits = []
 
-def huge_finite(B1,G1,G2,G1finite_initialization,G2finite_initialization):
+    #we determine the solutions which are divisible by high powers of primes in SlnotSm_gp3
 
-    precision = 200
+    for k,p in enumerate(SlnotSm_gp3):
+        solutions,i = sieve_for_p_in_support_of_Gl_C3(p,Gm,Sl,bound_Gl,bound_Sl[Sl.index(p)])
 
-    if len(G1) == 0:
-        raise ValueError('G1 is the empty list')
-    if len(G2) == 0:
-         raise ValueError('G2 is empty list')
+        Sunits += solutions
+        bound_Sl[Sl.index(p)] = i
+        if sigma(p) in Sl:
+            bound_Sl[Sl.index(sigma(p))] = i
+        else:
+            bound_Sl[Sl.index(sigma(sigma(p)))] = i
+        #again we get new bounds for the exponents by the new bounds we have to the primes
+        bound_Gl = bounds_for_exponents_from_bounds_for_primes(Gl,Sl,bound_Sl,bound_Gl)
+        print 'bound_Gl-4',bound_Gl
 
-    Kplaces = K.places(prec = precision)
-    Krealplaces = K.real_embeddings(prec = precision)
-    Kcomplexplaces = [s for s in Kplaces if not is_real_place(s)]
-    Kembeddings = Krealplaces + Kcomplexplaces
+    #we reduce the bound for the unit generators again
+    bound_Gl , R = reduce_bound_for_unit_generators_S3(Gl,Gm,bound_Gl,R)
+    print 'bound_Gl-5',bound_Gl
 
-    finiteSup1, realSup1, complexSup1 = support_of_G(G1,precision)
-    finiteSup2, realSup2, complexSup2 = support_of_G(G2,precision)
+    #we reduce the bound using simple inequalities again
 
-    #the generators for the free part of each G1 and G2
+    old_bound = copy(bound_Gl)
+    # print '1-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
+    for p in infinite_primes:
+        bound_Gl = reduce_bound_with_simple_inequalities_C3(Gm,p,bound_Gl,R)
+    # print '2-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
-    G1free = [g for g in G1 if g.multiplicative_order() == Infinity]
-    G2free = [g for g in G2 if g.multiplicative_order() == Infinity]
+    while old_bound != bound_Gl:
+        old_bound = copy(bound_Gl)
+        for p in infinite_primes:
+            bound_Gl = reduce_bound_with_simple_inequalities_C3(Gm,p,bound_Gl,R)
+        # print '3-old_bound=%s,bound_Gl=%s'%(old_bound,bound_Gl)
 
-    lenG1free = len(G1free)
-    lenG2free = len(G2free)
+    print 'bound_Gl-6',bound_Gl
 
-    #the generator of the torsion part of G1 and G2
+    #we find the smallest unramified and split prime
+    find_prime = False
+    p = 2
+    while not find_prime:
+        for pL in L.primes_above(p):
+            if pL not in Sl and pL not in Sm and not pL.idealstar().is_trivial():
+                pK = pL.ideal_below()
+                if pK.residue_class_degree() == pL.residue_class_degree():
+                    I = L.ideal(pL.ideal_below())
+                    find_prime = True
+        p = Primes().next(ZZ(p))
 
-    if len([g for g in G1 if g.multiplicative_order() != Infinity]) > 0:
-        g01 = [g for g in G1 if g.multiplicative_order() != Infinity][0]
-    else:
-        g01 = K(1)
+    #we do the final sieve using the unramified and split prime we found above and the Hilbert symbol
 
-    if len([g for g in G2 if g.multiplicative_order() != Infinity]) > 0:
-        g02 = [g for g in G2 if g.multiplicative_order() != Infinity][0]
-    else:
-        g02 = K(1)
+    for l in reduce_cases_with_p_outside_S_and_Hilbert_symbol_C3(I,Gl,Gm,bound_Gl):
+        if l not in Sunits:
+            Sunits.append(l)
 
-    #Since both groups have the same torsion part we define a global torsion
+    #we throw away 0 and 1
 
-    if lenG1free == 0:
-        return g01.multiplicative_order()
-    elif lenG2free == 0:
-        return g02.multiplicative_order()
+    while L(0) in Sunits:
+        Sunits.remove(L(0))
+    while L(1) in Sunits:
+        Sunits.remove(L(1))
 
-    G1c1 ,G1c2, G1c3= c_constants(G1free,precision)
-    G2c1,G2c2, G2c3 = c_constants(G2free,precision)
-    c1 = max([G1c1,G2c1])
-
-
-    print 'G1'
-    G1B2finite = 0
-    for P in G1finite_initialization:
-        print 'place'
-        B_place = 0
-        if len(P[2]) !=0:
-            prec = precision
-            M_logp = [log_p(m,P[0],prec) for m in P[2]]
-            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-            for m0 in P[1]:
-                print 'm0'
-                Bold_m0 = B1
-                finish = False
-                while not finish:
-                    print 'Bold_m0',Bold_m0
-                    Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G1c3,prec)
-                    print 'Bnew_m0',Bnew_m0
-                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                    if not increase_precision:
-                        if Bnew_m0 < Bold_m0:
-                            print 'Bnew_m0 < Bold_m0'
-                            Bold_m0 = Bnew_m0
-                            if Bold_m0 <= 2:
-                                finish = True
-                                Bold_m0 = 2
-                        else:
-                            finish = True
-                    else:
-                        #we evaluate with higher precision G1c1, G1c2 and G1c3
-                        prec *= 2
-                        G1c1 ,G1c2, G1c3 = c_constants(G1free,prec)
-                        M_logp = [log_p(m,P[0],prec) for m in P[2]]
-                        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-                B_place = max(B_place,Bold_m0)
-        G1B2finite = max(G1B2finite,B_place)
-
-    print 'G2'
-
-    G2B2finite = 0
-    for P in G2finite_initialization:
-        B_place = 0
-        if len(P[2]) != 0:
-            prec = precision
-            M_logp = [log_p(m,P[0],prec) for m in P[2]]
-            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-            for m0 in P[1]:
-                Bold_m0 = B1
-                finish = False
-                while not finish:
-                    Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
-
-                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                    if not increase_precision:
-                        if Bnew_m0 < Bold_m0:
-                            Bold_m0 = Bnew_m0
-                            if Bold_m0 <= 2:
-                                finish = True
-                                Bold_m0 = 2
-                        else:
-                            finish = True
-                    else:
-                        #we evaluate with higher precision G2c1 , G2c2 and G2c3
-                        prec *= 2
-                        G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
-                        M_logp = [log_p(m,P[0],prec) for m in P[2]]
-                        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-                B_place = max(B_place,Bold_m0)
-        G2B2finite = max(G2B2finite,B_place)
-    B2finite = max(G1B2finite,G2B2finite)
-    print 'B2finite',B2finite
-
+    return Sunits
 
 # 17 Orlescote Road, CV4 7BG, Coventry - Ros address

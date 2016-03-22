@@ -1,3 +1,6 @@
+###### INITIAL BOUND ######
+
+
 def round(a):
     r"""
     
@@ -476,9 +479,6 @@ def reduction_step_complex_case(place,B0,G,g0,c7):
         sage: reduction_step_complex_case(p1,10^5,G,-1,2)
             (18,False)
     """
-    #print [place(g) for g in G]
-    #if len([g for g in G if place(g).abs() != 1]) == 0:
-    #    raise ValueError('The place is not in the support of G')
     
     precision = place.codomain().precision()
     n = len(G)
@@ -488,10 +488,7 @@ def reduction_step_complex_case(place,B0,G,g0,c7):
     Glog_real = Glog_real + [0]
     a0log_imag = (log(place(-g0))).imag_part()
     a0log_real = (log(place(-g0))).real_part()
-    
-    #the 2nd term comes from the fact we don't want later the vector v to have 0 everywhere
-    C = max((B0**n/100),max([1/l for l in Glog_imag if l != 0]+[0])+1,max([1/l for l in Glog_real if l != 0]+[0])+1)
-    
+
     #the case when the real part is 0 for all log(a_i)
     
     pl = higher_precision(place,2 * place.codomain().precision())
@@ -499,11 +496,12 @@ def reduction_step_complex_case(place,B0,G,g0,c7):
         
         #we have only imaginary numbers and we are in case 2 as Smart's book says on page 84
 
-        C = round(min((B0**n/100),max([1/l.abs() for l in Glog_imag if l != 0]+[0])))+1
+        C = 1#round(min((B0**n/100),max([1/l.abs() for l in Glog_imag if l != 0]+[0])))+1
         S = n * B0**2
+
         #if the precision we have is not high enough we have to increase it and evaluate c7 again
-        if precision < log(C)/log(2):
-            return 0,True
+        # if precision < log(C)/log(2):
+        #     return 0,True
         
         T = ((n+1) * B0 + 1)/2
         finish = False
@@ -511,45 +509,45 @@ def reduction_step_complex_case(place,B0,G,g0,c7):
             A = copy(identity_matrix(ZZ,n+1))
             v = vector([round(g * C) for g in Glog_imag])
             
-            if v[n] == 0: #we replace the last element of v with an other non zero
+            if v[n] == 0:
+                #we replace the last element of v with an other non zero
+
                 k = [i for i,a in enumerate(v) if not a.is_zero()][0]
                 v[n] = v[k]
                 v[k] = 0
             A[n] = v
-            
-            #We have to work with rows because of the .LLL() function
-    
-            A = A.transpose()                   
-            y = copy(zero_vector(ZZ,n+1))
-            y[n] = (-1) * round(a0log_imag * C)
-            l = minimal_vector(A,y)
 
-            #On the following lines I apply Lemma VI.1 of the reference page 83
-            
-            if l < T**2 + S:
-                #print 'l-complex',round(l),round(T**2 + S)
-                #if round(l) == 0:
-                #    print 'Glog_imag,Glog_real',A.LLL()[0].norm()
-                C = 2 * C
-                #The same as above if for the new C the precision is low
-                if precision < log(C)/log(2):
-                   return 0,True 
+            if A.is_singular():
+                C *= 2
             else:
-                Bnew = round((log(C * 2)-log(sqrt(l-S)-T))/c7)
-                finish = True
-                if mod(y[n],A[n,n]) == 0:
-                    return max(Bnew,(y[n]/A[n,n]).abs()),False
+                #We have to work with rows because of the .LLL() function
+
+                A = A.transpose()
+                y = copy(zero_vector(ZZ,n+1))
+                y[n] = (-1) * round(a0log_imag * C)
+                l = minimal_vector(A,y)
+
+                #On the following lines I apply Lemma VI.1 of the reference page 83
+
+                if l < T**2 + S:
+                    C = 2 * C
+
+                    #The same as above if for the new C the precision is low
+                    if precision < log(C)/log(2):
+                       return 0,True
                 else:
-                    return Bnew,False
+                    Bnew = round((log(C * 2)-log(sqrt(l-S)-T))/c7)
+                    finish = True
+                    if mod(y[n],A[n,n]) == 0:
+                        return max(Bnew,(y[n]/A[n,n]).abs()),False
+                    else:
+                        return Bnew,False
         
     else:
         
         #the case when the real part is not 0 for all log(a_i)
-
-        C = max((B0**n/100),max([1/l.abs() for l in Glog_imag if l != 0]+[0])+1,max([1/l.abs() for l in Glog_real if l != 0]+[0])+1)#B0**((n+1)/2)
-        if precision < log(C)/log(2):
-            return 0, True
-        S = (n-1) * B0 ** 2
+        C = 1
+        S = (n-1) * B0**2
         T = ((n+1)*B0+1)/sqrt(2)
         finish = False
         
@@ -569,33 +567,36 @@ def reduction_step_complex_case(place,B0,G,g0,c7):
             A = copy(identity_matrix(ZZ,n+1))
             A[n-1] = vector([round(g * C) for g in Glog_real])
             A[n] = vector([round(g * C) for g in Glog_imag])
-            #print 'A',[t for t in Glog_real if t != 0],round(C)
-            #On the following lines I apply Lemma VI.2 of the reference page 85
-            
-            A = A.transpose()
-            y = copy(zero_vector(ZZ,n+1))
-            y[n] = (-1) * round(a0log_imag * C)
-            y[n-1] = (-1) * round(a0log_real*C)
-            l = minimal_vector(A,y)
-             
-            if l < T**2 + S:
-                #print 'l-both',round(l)
-                C = 2 * C
-                #The same as above if for the new C the precision is low
-                if precision < log(C)/log(2):
-                    return 0,True 
+
+            if A.is_singular():
+                C *= 2
             else:
-                Bnew = round((log(C * 2)-log(sqrt(l-S)-T))/c7)
-                
-                #we take into account the second case of the theorem VI.2 of the reference page 85
-                
-                M = matrix(ZZ,2,[A[n-1,n-1],A[n-1,n],A[n,n-1],A[n,n]])
-                b = vector(ZZ,2,[-y[n-1],-y[n]])
-                if M.determinant() == 1 or M.determinant() == -1:
-                    x = M.inverse() * b
-                    return max(Bnew,x[0].abs(),x[1].abs()),False
+                #On the following lines I apply Lemma VI.2 of the reference page 85
+
+                A = A.transpose()
+                y = copy(zero_vector(ZZ,n+1))
+                y[n] = (-1) * round(a0log_imag * C)
+                y[n-1] = (-1) * round(a0log_real*C)
+                l = minimal_vector(A,y)
+
+
+                if l < T**2 + S:
+                    C *= 2
+                    #The same as above if for the new C the precision is low
+                    if precision < log(C)/log(2):
+                        return 0,True
                 else:
-                    return Bnew,False
+                    Bnew = round((log(C * 2)-log(sqrt(l-S)-T))/c7)
+
+                    #we take into account the second case of the theorem VI.2 of the reference page 85
+
+                    M = matrix(ZZ,2,[A[n-1,n-1],A[n-1,n],A[n,n-1],A[n,n]])
+                    b = vector(ZZ,2,[-y[n-1],-y[n]])
+                    if M.determinant() == 1 or M.determinant() == -1:
+                        x = M.inverse() * b
+                        return max(Bnew,x[0].abs(),x[1].abs()),False
+                    else:
+                        return Bnew,False
 
 
 def log_p_of_a_list(L,prime,M):
@@ -1088,7 +1089,12 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         raise ValueError('G1 is the empty list')
     if len(G2) == 0:   
          raise ValueError('G2 is empty list')
-    
+
+    if G1 == G2:
+        sameG1G2 = True
+    else:
+        sameG1G2 = False
+
     Kplaces = K.places(prec = precision)
     Krealplaces = K.real_embeddings(prec = precision)
     Kcomplexplaces = [s for s in Kplaces if not is_real_place(s)]
@@ -1096,17 +1102,17 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
 
     finiteSup1, realSup1, complexSup1 = support_of_G(G1,precision)
     finiteSup2, realSup2, complexSup2 = support_of_G(G2,precision)
-         
+
     #the generators for the free part of each G1 and G2
-           
+
     G1free = [g for g in G1 if g.multiplicative_order() == Infinity]
     G2free = [g for g in G2 if g.multiplicative_order() == Infinity]
-    
+
     lenG1free = len(G1free)
     lenG2free = len(G2free)
-    
+
     #the generator of the torsion part of G1 and G2
-    
+
     if len([g for g in G1 if g.multiplicative_order() != Infinity]) > 0:
         g01 = [g for g in G1 if g.multiplicative_order() != Infinity][0]
     else:
@@ -1116,12 +1122,12 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         g02 = [g for g in G2 if g.multiplicative_order() != Infinity][0]
     else:
         g02 = K(1)
-        
+
     #Since both groups have the same torsion part we define a global torsion
 
     if lenG1free == 0:
         return g01.multiplicative_order()
-    elif lenG2free == 0:
+    elif lenG2free == 0 and not sameG1G2:
         return g02.multiplicative_order()
 
     G1c1 ,G1c2, G1c3= c_constants(G1free,precision)
@@ -1177,10 +1183,8 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         Bold = B1
         finish = False
         while not finish:
-            # print 'Bold',Bold
-            # return place,Bold,G2free,G1c3
             Bnew , increase_precision = reduction_step_real_case(place,Bold,G2free,G1c3)
-            # print 'Bnew',Bnew
+
             #if we have to increase the precision we evaluate c1,c2,c3 constants again
 
             if not increase_precision:
@@ -1200,42 +1204,45 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         G1B2real = max(G1B2real,Bold)
 
     #G2
-    G2B2real = 0
-    for place in realSup2:
-        Bold = B1
-        finish = False
-        while not finish:
-            Bnew , increase_precision = reduction_step_real_case(place,Bold,G1free,G2c3)
+    if not sameG1G2:
+        G2B2real = 0
+        for place in realSup2:
+            Bold = B1
+            finish = False
+            while not finish:
+                Bnew , increase_precision = reduction_step_real_case(place,Bold,G1free,G2c3)
 
-            #if we have to increase the precision we evaluate c1,c2,c3 constants again
+                #if we have to increase the precision we evaluate c1,c2,c3 constants again
 
-            if not increase_precision:
-                if Bnew < Bold:
-                    Bold = Bnew
-                    if Bold <= 2:
+                if not increase_precision:
+                    if Bnew < Bold:
+                        Bold = Bnew
+                        if Bold <= 2:
+                            finish = True
+                            Bold = 2
+                    else:
                         finish = True
-                        Bold = 2
                 else:
-                    finish = True
-            else:
-                #we evaluate with higher precision G2c1 , G2c2 and G2c3
+                    #we evaluate with higher precision G2c1 , G2c2 and G2c3
 
-                G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
-                place = higher_precision(place,2*place.codomain().precision())
+                    G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
+                    place = higher_precision(place,2*place.codomain().precision())
 
-        G2B2real = max(G2B2real,Bold)
-    B2real = max(G1B2real,G2B2real)
+            G2B2real = max(G2B2real,Bold)
+        B2real = max(G1B2real,G2B2real)
+    else:
+        B2real = G1B2real
     # print 'B2real',B2real
 
     # Complex case
     # print 'complex'
     #G1
+    # print 'G1'
     G1B2complex = 0
     for place in complexSup1:
         B_place = 0
         for g0 in [g02**i for i in range(g02.multiplicative_order())]:
             Bold_g0 = B1
-            # print('Bold_g0',Bold_g0,g0)
             finish = False
             while not finish:
                 Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G2free,g0,G1c3/2)
@@ -1257,34 +1264,37 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
             B_place = max(B_place,Bold_g0)
         G1B2complex = max(G1B2complex,B_place)
 
-    #print 'G2'
+    # print 'G2'
     #G2
-    G2B2complex = 0
-    for place in complexSup2:
-        B_place = 0
-        for g0 in [g01**i for i in range(g01.multiplicative_order())]:
-            Bold_g0 = B1
-            finish = False
-            while not finish:
-                Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G1free,g0,G2c3/2)
+    if not sameG1G2:
+        G2B2complex = 0
+        for place in complexSup2:
+            B_place = 0
+            for g0 in [g01**i for i in range(g01.multiplicative_order())]:
+                Bold_g0 = B1
+                finish = False
+                while not finish:
+                    Bnew_g0 ,increase_precision = reduction_step_complex_case(place,Bold_g0,G1free,g0,G2c3/2)
 
-                #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                if not increase_precision:
-                    if Bnew_g0 < Bold_g0:
-                        Bold_g0 = Bnew_g0
-                        if Bold_g0 <= 2:
+                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
+                    if not increase_precision:
+                        if Bnew_g0 < Bold_g0:
+                            Bold_g0 = Bnew_g0
+                            if Bold_g0 <= 2:
+                                finish = True
+                                Bold_g0 = 2
+                        else:
                             finish = True
-                            Bold_g0 = 2
                     else:
-                        finish = True
-                else:
-                    #we evaluate with higher precision G2c1 , G2c2 and G2c3
+                        #we evaluate with higher precision G2c1 , G2c2 and G2c3
 
-                    G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
-                    place = higher_precision(place,2*place.codomain().precision())
-            B_place = max(B_place,Bold_g0)
-        G2B2complex = max(G2B2complex,B_place)
-    B2complex = max(G1B2complex,G2B2complex)
+                        G2c1 ,G2c2, G2c3 = c_constants(G2free,2*place.codomain().precision())
+                        place = higher_precision(place,2*place.codomain().precision())
+                B_place = max(B_place,Bold_g0)
+            G2B2complex = max(G2B2complex,B_place)
+        B2complex = max(G1B2complex,G2B2complex)
+    else:
+        B2complex = G1B2complex
     # print 'B2complex',B2complex
 
     #  Finite case
@@ -1322,38 +1332,40 @@ def reduce_the_bound_absolute_field(K,G1,G2,precision):
         G1B2finite = max(G1B2finite,B_place)
 
     # print 'G2'
+    if not sameG1G2:
+        G2B2finite = 0
+        for P in G2finite_initialization:
+            B_place = 0
+            if len(P[2]) != 0:
+                prec = precision
+                M_logp = [log_p(m,P[0],prec) for m in P[2]]
+                M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+                for m0 in P[1]:
+                    Bold_m0 = B1
+                    finish = False
+                    while not finish:
+                        Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
 
-    G2B2finite = 0
-    for P in G2finite_initialization:
-        B_place = 0
-        if len(P[2]) != 0:
-            prec = precision
-            M_logp = [log_p(m,P[0],prec) for m in P[2]]
-            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-            for m0 in P[1]:
-                Bold_m0 = B1
-                finish = False
-                while not finish:
-                    Bnew_m0,increase_precision = reduction_step_finite_case(P[0],Bold_m0,P[2],M_logp,m0,G2c3,prec)
-
-                    #if we have to increase the precision we evaluate c1,c2,c3 constants again
-                    if not increase_precision:
-                        if Bnew_m0 < Bold_m0:
-                            Bold_m0 = Bnew_m0
-                            if Bold_m0 <= 2:
+                        #if we have to increase the precision we evaluate c1,c2,c3 constants again
+                        if not increase_precision:
+                            if Bnew_m0 < Bold_m0:
+                                Bold_m0 = Bnew_m0
+                                if Bold_m0 <= 2:
+                                    finish = True
+                                    Bold_m0 = 2
+                            else:
                                 finish = True
-                                Bold_m0 = 2
                         else:
-                            finish = True
-                    else:
-                        #we evaluate with higher precision G2c1 , G2c2 and G2c3
-                        prec *= 2
-                        G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
-                        M_logp = [log_p(m,P[0],prec) for m in P[2]]
-                        M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
-                B_place = max(B_place,Bold_m0)
-        G2B2finite = max(G2B2finite,B_place)
-    B2finite = max(G1B2finite,G2B2finite)
+                            #we evaluate with higher precision G2c1 , G2c2 and G2c3
+                            prec *= 2
+                            G2c1 ,G2c2, G2c3 = c_constants(G2free,prec)
+                            M_logp = [log_p(m,P[0],prec) for m in P[2]]
+                            M_logp = [embedding_to_Kp(m,P[0],prec) for m in M_logp]
+                    B_place = max(B_place,Bold_m0)
+            G2B2finite = max(G2B2finite,B_place)
+        B2finite = max(G1B2finite,G2B2finite)
+    else:
+        B2finite = G1B2finite
 
     return RR(max(B2real,B2complex,B2finite)).floor()
 
@@ -1426,3 +1438,90 @@ def simple_loop_for_S_unit_equation(G1,G2,B):
 
 
 
+
+###### SIEVE ######
+
+
+def reduce_the_bound_for_unit_generators(G,bounds,R):
+    r"""
+
+    INPUT:
+        - ``G`` : a list of generators of the group
+        - ``bounds`` : a list of upper bounds for each generator
+        - ``R`` : a real number such that `\mid\log\mid\mu\mid_{\mathfrak p}\mid\leq\log(R)` for all infinite primes `\mathfrak p`
+    """
+
+
+
+def reduce_the_bound_for_p_in_support_of_G(prime,G,B):
+    r"""
+
+    INPUT:
+        - ``prime`` : a prime ideal which lies in the support of ``G``
+        - ``G`` : a list of generators of the group
+        - ``B`` : an upper bound for the exponents of the solutions `\lambda ,\mu`
+
+    OUTPUT:
+        A reduced upper bound for the valuation of `\lambda` at the prime ideal ``prime``.
+
+    COMMENT:
+        We use Smart's ideas to prove that the inequality `\mid\mu -1\mid_{\mathfrak p}\leq\delta` has not nontrivial
+        solutions.
+    """
+
+    Blow = 1
+    Bupp = B
+    Bmid = RR((Blow+Bupp)/2).floor()
+
+    L = prime.ring()
+    Labs = L.absolute_field('a')
+    eLLabs = L.embeddings(Labs)[0]
+    prime_abs = eLLabs(prime)
+    G_abs = [eLLabs(g) for g in G]
+    p = prime_abs.absolute_norm().factor()[0][0]
+    f = prime_abs.residue_class_degree()
+    precision = 200
+
+    #we evaluate the new basis of Gm of elements with zero valuation at prime and their p-adic logarithms
+    new_G0_abs, new_G_abs, k = a_basis_with_0_order_at_p(prime_abs,G_abs)
+    new_G_abs_logp = [log_p(m,prime_abs,precision) for m in new_G_abs]
+    new_G0_abs_logp = [log_p(m0,prime_abs,precision) for m0 in new_G0_abs]
+
+    while Bupp-Blow > 1:
+
+        trivial, new_G0_abs_logp, new_G_abs_logp, precision = trivial_Tp_finite_place(B,prime_abs,new_G0_abs,new_G_abs,new_G0_abs_logp,new_G_abs_logp,p**(-Bmid*f),precision)
+        if trivial:
+            Bupp = Bmid
+        else:
+            Blow = Bmid
+        Bmid = RR((Blow+Bupp)/2).floor()
+    return Bupp
+
+
+def general_sieve(G,B,precision):
+    r"""
+
+    INPUT:
+        - ``G`` : a list of generators of the group ``G_\mu``
+        - ``B`` : an upper bound for the exponents of the solutions `\lambda ,\mu`.
+        - ``precision`` : the precision of the calculations
+
+    OUTPUT:
+        All solutions of the `S`-unit equation `\lambda+\mu=1` where `\lambda,\mu\in G`.
+
+    COMMENT:
+        We assume that both `\lambda` and `\mu` lie in ``G``.
+    """
+
+    supp = support_of_G(G,precision)
+    bounds = [G[0].multiplicative_order()]+[B]*(len(G)-1)
+
+
+    # bounds_S = [0]*len(supp[0])
+
+    #We find smaller upper bounds for the valuation of the solutions in prime ideals
+
+    bound_S = [reduce_the_bound_for_p_in_support_of_G(prime,G,B) for prime in supp[0]]
+    bounds = bounds_for_exponents_from_bounds_for_primes(G,supp[0],bound_S,bounds)
+
+    return bounds
