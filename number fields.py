@@ -946,7 +946,7 @@ def is_S_unit_element(self,u):
         u = K(u)
     except TypeError:
         raise ValueError("%s is not an element of %s"%(u,K))
-    # print 'u.absolute_norm = %s'%(u.absolute_norm())
+
     if self._UnitGroup__S:
         m = pK.bnfissunit(self._UnitGroup__S_unit_data, pari(u)).mattranspose()
         if m.ncols() == 0:
@@ -958,4 +958,3 @@ def is_S_unit_element(self,u):
             return False
         else:
             return True
-

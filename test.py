@@ -1,23 +1,52 @@
 from sage.schemes.elliptic_curves.ell_egros import (egros_from_jlist, egros_from_j, egros_get_j)
 
+def nice_exposition_of_j(J):
 
-def test(j):
+    J = [QQ(j) for j in J]
+    print
+
+    for j in J:
+        if j.denominator() != 1:
+            print('\\frac{%s}{%s},'%(j.numerator(),j.denominator())),
+        else:
+            print('%s,'%(j)),
+
+def find_field_of_j(j,L):
+    y = polygen(L)
+    f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
+    if len(f.roots())>0:
+        return True
+    else:
+        return False
+
+
+def test(j,L,Gl,Gm):
     # L = QQ
-    y = polygen(QQ)
+    y = polygen(L)
     # j = L(j)
     print 'j',j
     f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
-    # N = f.splitting_field('a')
-    f = f.change_ring(L)
+    # # N = f.splitting_field('a')
+
+    # if len(f.roots()) > 0:
+    #     return True
+    # else:
+    #     return False
+    # J = []
     for r in f.roots():
-        print 'i',is_in_G(r[0],Gl)
+        l = r[0]
         if is_in_G(r[0],Gl):
             if is_in_G(r[0],Gl) and is_in_G(1-r[0],Gm):
-                print list_in_G(r[0],Gl),list_in_G(1-r[0],Gm)
-        #         print (r[0]).valuation(prime)
-        #         return r[0]
-    #                 return r[0]#[SunitL(r[0]) for r in f.roots()][0].value()
-    return N
+                print 'coordinates',list_in_G(r[0],Gl)
+                return r[0]
+                # print L.ideal(r[0]).factor()
+
+                # if list_in_G(r[0],Gl)[3].abs()>3:
+                #     return True
+                # else:
+                #     return False
+
+
 
 def test1(P,B1,G1):
     import time
@@ -80,11 +109,11 @@ def testC2():
     o.write('C2 - case \n\n')
     o.close()
     P = Primes()
-    p = Integer(31)
+    p = Integer(23)
     data = []
-    while p <= 31:
+    while p <= 23:
     # for p in [Integer(89)]:
-    #     S = [2,3,p]
+        S = [2,3,p]
     #     print 'p',p
 
         #We compare with Cremona's database

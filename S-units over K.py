@@ -241,10 +241,12 @@ def Yu_theorem(A,prime,embeddings):
         - ``embeddings`` : a list of all embeddings of `K` to `\mathbb C`
         
     OUTPUT:
-        `(C_1C_2C_3 , C_1C_2C_3C_4)`, where `C_1, C_2, C_3` and `C_4` are defined in the theorem of the appendix of the reference
+        `(C_1C_2C_3 , C_1C_2C_3C_4)`, where `C_1, C_2, C_3` and `C_4` are defined in the theorem of the appendix of the
+        reference.
         
     REFERENCE:
-         N. Tzanakis and B. M. M. De Weger. Solving a specific Thue-Mahler equation. Mathematics of Computation, 57(196):799-815, 1991.
+         N. Tzanakis and B. M. M. De Weger. Solving a specific Thue-Mahler equation. Mathematics of Computation,
+         57(196):799-815, 1991.
          
     EXAMPLE::
         
@@ -1440,6 +1442,37 @@ def simple_loop_for_S_unit_equation(G1,G2,B):
 
 
 ###### SIEVE ######
+
+
+def simple_loop_over_K(Gl,bounds,S):
+    r"""
+
+    INPUT:
+        - ``Gl`` : a list of generators of a multiplicative subgroup of `K^*` for a number field `K`
+        - ``bounds`` a list of upper bounds of the absolute value of the exponents of ``Gl``
+        - ``S`` :  a list of prime ideals of `K`
+
+    OUTPUT:
+        A list of all `\lambda\in G_\lambda` such that `1-\lambda` is an ``S``-unit
+    """
+
+    K = Gl[0].parent()
+    Smunit_group = K.S_unit_group(S=S)
+    Sunits = []
+    for v in cartesian_product_iterator([xrange(bounds[0])]+[xrange(-b,b+1) for b in bounds[1:]]):
+        l = prod([g**e for g,e in zip(Gl,v)])
+        if is_S_unit_element(Smunit_group,1-l):
+            if l not in Sunits:
+                Sunits.append(l)
+
+    #we throw away 0 and 1
+
+    while 0 in Sunits:
+        Sunits.remove(0)
+    while 1 in Sunits:
+        Sunits.remove(1)
+
+    return Sunits
 
 
 def reduce_the_bound_for_unit_generators(G,bounds,R):

@@ -6,7 +6,7 @@ def reduce_boundsC2(K,Gl,Gm,precision):
          we have to compute solutions
     """
 
-    B = reduce_the_bound(K,Gl,Gm,precision)
+    B = 1286#reduce_the_bound(K,Gl,Gm,precision)
     if Gl == [] or Gm == []:
         raise ValueError('Either Gl or Gm is empty')
 
@@ -30,8 +30,8 @@ def reduce_boundsC2(K,Gl,Gm,precision):
     if len(Gl) <= 2:
         return bound_Gl,bound_Gm
 
-    # print 'bound_Gl-1',bound_Gl
-    # print 'bound_Gm-1',bound_Gm
+    print 'bound_Gl-1',bound_Gl
+    print 'bound_Gm-1',bound_Gm
 
     #we pick only one of the two split primes
     Slreduce = []
@@ -60,15 +60,15 @@ def reduce_boundsC2(K,Gl,Gm,precision):
     bound_Gl = bounds_for_exponents_from_bounds_for_primes(Gl,Slreduce,bound_Slreduce,bound_Gl)
     bound_Gm = bounds_for_exponents_from_bounds_for_primes(Gm,Sm,bound_Sm,bound_Gm)
 
-    # print 'bound_Gl-2',bound_Gl
-    # print 'bound_Gm-2',bound_Gm
+    print 'bound_Gl-2',bound_Gl
+    print 'bound_Gm-2',bound_Gm
 
     R = max([exp(sum([(log(s(g).abs())).abs() * b if is_real_place(s) else (2*log(s(g).abs())).abs() * b for g,b in zip(Gl,bound_Gl)])) for s in infinite_primes])
 
     bound_Gl , R = reduce_bound_for_unit_generators_C2(Gl,Gm,bound_Gl,bound_Gm,R)
 
-    # print 'bound_Gl-3',bound_Gl
-    # print 'bound_Gm-3',bound_Gm
+    print 'bound_Gl-3',bound_Gl
+    print 'bound_Gm-3',bound_Gm
 
     #we use triangle inequality to reduce the bound
 
@@ -81,8 +81,8 @@ def reduce_boundsC2(K,Gl,Gm,precision):
         for p in infinite_primes:
             bound_Gl = reduce_bound_with_simple_inequalities_C3(Gl,p,bound_Gl,R)
 
-    # print 'bound_Gl-4',bound_Gl
-    # print 'bound_Gm-4',bound_Gm
+    print 'bound_Gl-4',bound_Gl
+    print 'bound_Gm-4',bound_Gm
 
     return bound_Gl,bound_Gm
 
@@ -161,7 +161,7 @@ def boundsC2():
             if A[i,i] != 0:
                 M,Gl,Gm = C2_extensions[i]
                 start = time.time()
-                bounds = [0,0]#reduce_boundsC2(M,Gl,Gm,200)
+                bounds = reduce_boundsC2(M,Gl,Gm,200)
                 end = time.time()
                 sec = RR(end - start)
                 print('Gl = ',Gl)
@@ -205,7 +205,7 @@ def boundsC2():
                 M,Gl,Gm = C2_extensions[maxedges]
                 # print('M =',M.defining_polynomial())
                 start = time.time()
-                bounds = [0,0]#reduce_boundsC2(M,Gl,Gm,200)
+                bounds = reduce_boundsC2(M,Gl,Gm,200)
                 end = time.time()
                 sec = RR(end-start)
                 print('Gl = ',Gl)
@@ -349,7 +349,7 @@ def boundsC3():
             SL = sum([L.primes_above(p) for p in SK],[])
             Gl,Gm = Norm_subgroup_division_field(SK,SL)
             start = time.time()
-            bounds = 0#reduce_boundsC3(L,Gl,Gm,200)
+            bounds = reduce_boundsC3(L,Gl,Gm,200)
             end = time.time()
             sec = RR(end - start)
             # print('Gl = ',Gl)
