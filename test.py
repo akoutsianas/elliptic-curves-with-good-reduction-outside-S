@@ -11,8 +11,8 @@ def nice_exposition_of_j(J):
         else:
             print('%s,'%(j)),
 
-def find_field_of_j(j,L):
-    y = polygen(L)
+def find_field_of_j(j,K):
+    y = polygen(K)
     f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
     if len(f.roots())>0:
         return True
@@ -21,18 +21,9 @@ def find_field_of_j(j,L):
 
 
 def test(j,L,Gl,Gm):
-    # L = QQ
     y = polygen(L)
-    # j = L(j)
     print 'j',j
     f = (y**2-y+1)**3-j/2**8*(y**2*(y-1)**2)
-    # # N = f.splitting_field('a')
-
-    # if len(f.roots()) > 0:
-    #     return True
-    # else:
-    #     return False
-    # J = []
     for r in f.roots():
         l = r[0]
         if is_in_G(r[0],Gl):
@@ -441,5 +432,19 @@ def speed_S3_sieve(Gl,Gm):
         Sunits.remove(L(1))
 
     return Sunits
+
+
+def testdiophantine(A,B):
+
+    for a in range(A,B):
+        for b in range(a+1,B):
+            for c in range(b+1,B):
+                x = 1 + a*b
+                y = 1 + a*c
+                z = 1 + b*c
+                if ZZ(x).perfect_power()[1] == 3 and ZZ(y).perfect_power()[1] == 3 and ZZ(z).perfect_power()[1] == 3:
+                    print 'a = %s, b = %s, c = %s'%(a,b,c)
+
+
 
 # 17 Orlescote Road, CV4 7BG, Coventry - Ros address

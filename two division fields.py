@@ -318,7 +318,7 @@ def c3_z3_not(K,S):
                 #we check if the discriminant of L is unramified outside S
 
                 if K.ideal(L.relative_discriminant()).is_S_unit(S = S):
-                    #we make a `nice' choice defining polynomials
+                    #we make a `nice' choice of a defining polynomial
 
                     cubic_extensions.append(L)
                     Lc = K.extension(g,'c3')

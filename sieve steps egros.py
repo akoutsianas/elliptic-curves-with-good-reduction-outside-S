@@ -394,6 +394,7 @@ def simple_loop_with_M0_M1(M0,M1,S):
 
     return 1
 
+
 ##Quadratic case
 
 
@@ -511,8 +512,19 @@ def sieve_in_C2(Gl, Gm, B):
 
     Sunits = []
     Smunit_group = L.S_unit_group(S=Sm)
-    if len(Gl) <= 2:
-        for v in cartesian_product_iterator([xrange(bound_Gl[0] / 2 + 1), xrange(-bound_Gl[1], bound_Gl[1] + 1)]):
+
+    #the case Gl has at most one generator of the free part
+
+    if len(Gl) == 1:
+        for i in range(bound_Gl[0]):
+            l = Gl[0]**i
+            if is_S_unit_element(Smunit_group, 1 - l):
+                if l not in Sunits:
+                    Sunits.append(l)
+        return Sunits
+
+    if len(Gl) == 2:
+        for v in cartesian_product_iterator([xrange(bound_Gl[0]), xrange(-bound_Gl[1], bound_Gl[1] + 1)]):
             l = prod([g ** e for g, e in zip(Gl, v)])
             if is_S_unit_element(Smunit_group, 1 - l):
                 if l not in Sunits:
@@ -574,14 +586,12 @@ def sieve_in_C2(Gl, Gm, B):
     print 'bound_Sl', bound_Slreduce
     print 'bound_Sm', bound_Sm
 
-    return 1
     Sunits = []
 
     # Since we have reduced as much as we can, now we are able to make a simple loop to find the rest of the solutions
 
     Smunit_group = L.S_unit_group(S=Sm)
-    for v in cartesian_product_iterator(
-                    [xrange(bound_Gl[0] / 2 + 1), xrange(bound_Gl[1] + 1)] + [xrange(-b, b + 1) for b in bound_Gl[2:]]):
+    for v in cartesian_product_iterator([xrange(bound_Gl[0]), xrange(bound_Gl[1] + 1)] + [xrange(-b, b + 1) for b in bound_Gl[2:]]):
         l = prod([g ** e for g, e in zip(Gl, v)])
         if is_S_unit_element(Smunit_group, 1 - l):
             if l not in Sunits:
@@ -830,8 +840,8 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K, S):
     else:
         SK = S
 
-    # we through away the canditate 2-division fields whose relative discrimiant does not have even valuation at
-    # the primes above which are not in SK
+    # we through away the canditate 2-division fields whose relative discriminant does not have even valuation at
+    # the primes above 2 which are not in SK
 
     start = time.time()
     primes_above_2_not_in_SK = [p2 for p2 in K.primes_above(2) if p2 not in SK]
@@ -847,21 +857,17 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K, S):
         if p not in SK:
             SK.append(p)
 
-    C2_extensions = []
-    for M in quadratic_fields:
-        SM = sum([M.primes_above(p) for p in SK], [])
-        Gl, Gm = Norm_subgroup_division_field(SK, SM)
-        C2_extensions.append([M, Gl, Gm])
+    # using Hilbert symbol we choose with which fields we are going to work with
 
-    # using Hilbert's symbol we choose with which fields we are going to work with
-
-    N = len(C2_extensions)
-    A = copy(zero_matrix(ZZ, N))
-    B = [0] * N
-    for i in range(N):
-        d1 = C2_extensions[i][0].defining_polynomial().discriminant()
-        for j in range(i, N):
-            d2 = C2_extensions[j][0].defining_polynomial().discriminant()
+    # N = len(C2_extensions)
+    A = copy(zero_matrix(ZZ, len(quadratic_fields)))
+    B = [0] * len(quadratic_fields)
+    D = [K(1)]
+    for i in range(len(quadratic_fields)):
+        d1 = quadratic_fields[i].defining_polynomial().discriminant()
+        D.append(d1)
+        for j in range(i, len(quadratic_fields)):
+            d2 = quadratic_fields[j].defining_polynomial().discriminant()
             A[i, j] = (K.hilbert_symbol(d1, d2) + 1) / 2
             if A[i, j] == 1:
                 if i != j:
@@ -869,31 +875,16 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K, S):
                     B[j] += 1
                 else:
                     B[i] += 1
-    print 'we have %s fields to work with,' % (len(quadratic_fields))
-    print 'time for fields = %s' % (end - start)
 
-    J = []
-    # The case when they may exist two isogenous curves with the same 2-division field
+    # The case of two isogenous curves without full 2-torsion
 
-    for i in range(N):
+    final_fields = []
+
+    for i in range(len(quadratic_fields)):
         if A[i, i] != 0:
-            M, Gl, Gm = C2_extensions[i]
-            print 'M=%s' % (M)
-            print 'rank of groups = %s, %s' % (len(Gl) - 1, len(Gm) - 1)
-            start = time.time()
-            bound = reduce_the_bound(M, Gl, Gm, 200)
-            end = time.time()
-            print 'bound=%s,time for reduce bound=%s' % (bound, end - start)
-            start = time.time()
-            for l in sieve_in_C2(Gl, Gm, bound):
-                j = j_invariant(l)
-                # print 'j',j
-                if j in K:
-                    if K(j) not in J:
-                        J.append(j)
-            end = time.time()
-            print 'time for sieve=%s' % (end - start)
-            for j in range(i, N):
+            final_fields.append(quadratic_fields[i])
+            D.remove(quadratic_fields[i].defining_polynomial().discriminant())
+            for j in range(i, len(quadratic_fields)):
                 if A[i, j] == 1:
                     if i != j:
                         B[i] -= 1
@@ -918,26 +909,9 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K, S):
         m = max([b for b in B])
         if m != 0:
             maxedges = B.index(m)
-
-            # Here we evaluate the curves with respect to C2_extensions[maxedges]
-
-            M, Gl, Gm = C2_extensions[maxedges]
-            print 'M=%s' % (M)
-            print 'rank of groups = %s, %s' % (len(Gl) - 1, len(Gm) - 1)
-            start = time.time()
-            bound = reduce_the_bound(M, Gl, Gm, 200)
-            end = time.time()
-            print 'bound=%s, time for reduce bound=%s' % (bound, end - start)
-            start = time.time()
-            for l in sieve_in_C2(Gl, Gm, bound):
-                j = j_invariant(l)
-                # print 'j',j
-                if j in K:
-                    if K(j) not in J:
-                        J.append(j)
-            end = time.time()
-            print 'time for sieve=%s' % (end - start)
-            for j in range(maxedges, N):
+            final_fields.append(quadratic_fields[maxedges])
+            D.remove(quadratic_fields[maxedges].defining_polynomial().discriminant())
+            for j in range(maxedges, len(quadratic_fields)):
                 if A[maxedges, j] == 1:
                     if maxedges != j:
                         B[maxedges] -= 1
@@ -956,18 +930,59 @@ def elliptic_curves_with_good_reduction_with_a_rational_Weierstrass_point(K, S):
                         B[maxedges] -= 1
                         A[maxedges, maxedges] = 0
 
-    Jfinal = []
+    #we check if we have to solve more S-unit equation
+
+    for d1 in D:
+        for d2 in D:
+            for d3 in D:
+                if (-d1*d2*d3).is_square() and K.hilbert_symbol(d1,d2)==1 and K.hilbert_symbol(d1,d3)==1 and K.hilbert_symbol(d1,d3)==1:
+                    if d1 != 1:
+                        M = [L for L in quadratic_fields if L.relative_discriminant() == d1][0]
+                        if M not in final_fields:
+                            final_fields.append(M)
+                    if d2 != 1:
+                        M = [L for L in quadratic_fields if L.relative_discriminant() == d2][0]
+                        if M not in final_fields:
+                            final_fields.append(M)
+                    if d3 != 1:
+                        M = [L for L in quadratic_fields if L.relative_discriminant() == d3][0]
+                        if M not in final_fields:
+                            final_fields.append(M)
+
+    J = []
+    for L in final_fields:
+        print 'L',L
+        SL = sum([L.primes_above(p) for p in SK],[])
+        Gl,Gm = Norm_subgroup_division_field(SK, SL)
+        print 'Gl',len(Gl)-1
+        bound = reduce_the_bound(L, Gl, Gm, 200)
+        print 'bound',bound
+        for l in sieve_in_C2(Gl, Gm, bound):
+            j = j_invariant(l)
+            if j in K:
+                if j not in J:
+                    J.append(j)
+
     J = [K(j) for j in J]
-    # return J
-    if 1728 not in J:
-        J.append(K(1728))
-    Jfinal = J
+    Jfinal = []
     for j in J:
-        Jiso = j_invariant_of_2_isogenous(j)
-        for jprime in Jiso:
-            if jprime in K and jprime not in Jfinal:
-                Jfinal.append(jprime)
-    return Jfinal
+        if j not in Jfinal:
+            Jfinal.append(j)
+
+    if K.absolute_degree() == 1:
+        Jfinal = [QQ(j) for j in Jfinal]
+        curves = egros_from_jlist_over_K(Jfinal,QQ,[ZZ(p.norm()) for p in S])
+    else:
+        curves = egros_from_jlist_over_K(Jfinal,K,S)
+    curves_final = curves
+
+    for E1 in curves:
+        for E in [iso.codomain() for iso in E1.isogenies_prime_degree(2)]:
+            if E.torsion_order()%2 == 0:
+                if len([1 for E2 in curves_final if E.is_isomorphic(E2)]) == 0:
+                    curves_final.append(E)
+
+    return curves_final
 
 
 ##Cubic case
@@ -1996,6 +2011,11 @@ def elliptic_curves_with_good_reduction_with_S3_two_division_field(K, S):
         end = time.time()
         print 'time for sieve=%s' % (end - start)
     from sage.schemes.elliptic_curves.ell_egros import (egros_from_jlist, egros_from_j, egros_get_j)
+
+    while 0 in J:
+        J.remove(0)
+    while 1728 in J:
+        J.remove(1728)
 
     if K.absolute_degree == 1:
         return [QQ(j) for j in J if len(egros_from_j(QQ(j), S)) > 0]

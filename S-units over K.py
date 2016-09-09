@@ -1485,7 +1485,6 @@ def reduce_the_bound_for_unit_generators(G,bounds,R):
     """
 
 
-
 def reduce_the_bound_for_p_in_support_of_G(prime,G,B):
     r"""
 
